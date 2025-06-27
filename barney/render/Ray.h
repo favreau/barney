@@ -81,7 +81,7 @@ namespace BARNEY_NS {
     
     struct Ray {
 #if RTC_DEVICE_CODE
-      inline __rtc_device void setVolumeHit(vec3f P, float t, vec3f albedo);
+      inline __rtc_device void setVolumeHit(vec3f P, vec3f normal, float t, vec3f albedo);
       inline __rtc_device PackedBSDF getBSDF() const;
       inline __rtc_device void setHit(vec3f P, vec3f N, float t,
                                     const PackedBSDF &packedBSDF);
@@ -142,10 +142,11 @@ namespace BARNEY_NS {
     }
     
     inline __rtc_device void Ray::setVolumeHit(vec3f P,
+                                             vec3f normal,
                                              float t,
                                              vec3f albedo)
     {
-      setHit(P,vec3f(0.f),t,
+      setHit(P,normal,t,
              packedBSDF::Phase(albedo));
     }
 

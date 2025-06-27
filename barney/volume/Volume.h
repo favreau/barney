@@ -22,6 +22,8 @@
 #include "barney/volume/ScalarField.h"
 #include <array>
 
+#define VOLUME_GI
+
 namespace BARNEY_NS {
 
   struct Volume;
@@ -177,4 +179,37 @@ namespace BARNEY_NS {
     assert(volume);
     assert(volume->sf);
   }
+
+#ifdef VOLUME_GI
+    template <typename VolumeDD>
+    static inline __rtc_device
+        vec3f
+        computeVolumeGradient(const VolumeDD &sfSampler, vec3f P, float h = 10.0f)
+    {
+      const box3f &bounds = sfSampler.sfCommon.worldBounds;
+      
+      vec3f P_x_plus = P + vec3f(h, 0, 0);
+      vec3f P_x_minus = P - vec3f(h, 0, 0);
+      vec3f P_y_plus = P + vec3f(0, h, 0);
+      vec3f P_y_minus = P - vec3f(0, h, 0);
+      vec3f P_z_plus = P + vec3f(0, 0, h);
+      vec3f P_z_minus = P - vec3f(0, 0, h);
+      
+      // Sample points, using center value for out-of-bounds points
+      const float fx_plus = sfSampler.sampleAndMap(P_x_plus).w;
+      const float fx_minus = sfSampler.sampleAndMap(P_x_minus).w;
+      const float fy_plus = sfSampler.sampleAndMap(P_y_plus).w;
+      const float fy_minus = sfSampler.sampleAndMap(P_y_minus).w;
+      const float fz_plus = sfSampler.sampleAndMap(P_z_plus).w;
+      const float fz_minus = sfSampler.sampleAndMap(P_z_minus).w;
+
+      const vec3f grad = vec3f(
+          (fx_plus - fx_minus) / (2 * h),
+          (fy_plus - fy_minus) / (2 * h),
+          (fz_plus - fz_minus) / (2 * h));
+
+      return normalize(grad);
+    }
+#endif
+
 }

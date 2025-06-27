@@ -215,9 +215,17 @@ namespace BARNEY_NS {
                 
                 vec3f P_obj = obj_org + tRange.upper * obj_dir;
                 vec3f P = ti.transformPointFromObjectToWorldSpace(P_obj);
-                ray.setVolumeHit(P,
+#ifdef VOLUME_GI
+                const vec3f normal_obj = -computeVolumeGradient(self.volume, P_obj);
+                const vec3f normal = ti.transformNormalFromObjectToWorldSpace(normal_obj);
+                ray.setVolumeHit(P, normal,
+                                tRange.upper,
+                                getPos(sample));
+#else
+                ray.setVolumeHit(P, vec3f(0.f),
                                  tRange.upper,
                                  getPos(sample));
+#endif
                 ti.reportIntersection(tRange.upper, 0);
                 return false;
               },
