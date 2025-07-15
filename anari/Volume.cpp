@@ -82,6 +82,12 @@ namespace barney_device {
       return;
     }
 
+    if (!m_field->isValid()) {
+      reportMessage(ANARI_SEVERITY_WARNING,
+                    "invalid spatial field provided to transferFunction1D volume");
+      return;
+    }
+
     m_bounds = m_field->bounds();
 
     size_t numColorChannels{4};

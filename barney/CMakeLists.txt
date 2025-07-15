@@ -140,6 +140,10 @@ set(HOST_SOURCES
   # *structured* volumes
   volume/StructuredData.h
   volume/StructuredData.cu
+
+  # *planet* volumes
+  volume/PlanetField.h
+  volume/PlanetField.cu
   
   # actual geometry types
   geometry/Geometry.h
@@ -159,6 +163,8 @@ set(HOST_SOURCES
   volume/Volume.cpp
   volume/ScalarField.h
   volume/ScalarField.cpp
+  volume/PlanetField.h
+  volume/PlanetField.cu
   volume/MCAccelerator.h
   volume/TransferFunction.h
   volume/TransferFunction.cpp
@@ -224,6 +230,7 @@ set(DEVICE_PROGRAM_SOURCES
   geometry/Capsules.dev.cu
   geometry/Cones.dev.cu
   volume/StructuredData.dev.cu
+  volume/PlanetField.dev.cu
   umesh/mc/UMeshMC.dev.cu
 #  umesh/os/AWT.dev.cu
   amr/BlockStructuredMC.dev.cu

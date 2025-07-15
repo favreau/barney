@@ -184,7 +184,7 @@ namespace BARNEY_NS {
     template <typename VolumeDD>
     static inline __rtc_device
         vec3f
-        computeVolumeGradient(const VolumeDD &sfSampler, vec3f P, float h = 10.0f)
+        computeVolumeGradient(const VolumeDD &sfSampler, vec3f P, float h = 0.01f)
     {
       const box3f &bounds = sfSampler.sfCommon.worldBounds;
       
