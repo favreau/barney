@@ -26,6 +26,8 @@ SpatialField *SpatialField::createInstance(
     return new StructuredRegularField(s);
   else if (subtype == "planet")
     return new PlanetSpatialField(s);
+  else if (subtype == "cloud")
+    return new CloudSpatialField(s);
   else
     return (SpatialField *)new UnknownObject(ANARI_SPATIAL_FIELD, s);
 }
@@ -489,6 +491,77 @@ BNScalarField PlanetSpatialField::createBarneyScalarField() const
 box3 PlanetSpatialField::bounds() const
 {
   float totalRadius = m_sphereRadius + m_atmosphereThickness;
+  helium::float3 center = m_sphereCenter;
+  return box3(center - totalRadius, center + totalRadius);
+}
+
+// CloudSpatialField //
+
+CloudSpatialField::CloudSpatialField(BarneyGlobalState *s) : SpatialField(s) {}
+
+void CloudSpatialField::commitParameters()
+{
+  Object::commitParameters();
+  #if 0
+  m_cloudData = getParamObject<helium::Array3D>("cloudData");
+  #else
+  m_cloudData = getParamObject<helium::Array2D>("cloudData");
+  #endif
+  
+  m_sphereRadius = getParam<float>("sphereRadius", 0.5f);
+  m_maxHeight = getParam<float>("maxHeight", 0.2f);
+  m_sphereCenter = getParam<helium::float3>("sphereCenter", helium::float3(0.f));
+}
+
+void CloudSpatialField::finalize()
+{
+  // Cloud field is always valid - it can work without external data
+}
+
+bool CloudSpatialField::isValid() const
+{
+  return true; // Cloud field provides default behavior even without cloudData
+}
+
+BNScalarField CloudSpatialField::createBarneyScalarField() const
+{
+  if (!isValid())
+    return {};
+
+  int slot = deviceState()->slot;
+  auto context = deviceState()->tether->context;
+
+  BNScalarField sf = bnScalarFieldCreate(context, slot, "cloud");
+  
+  // Set cloud parameters
+  bnSet1f(sf, "sphereRadius", m_sphereRadius);
+  bnSet1f(sf, "maxHeight", m_maxHeight);
+  bnSet3fc(sf, "sphereCenter", m_sphereCenter);
+  
+  // Set cloud data texture if provided
+  if (m_cloudData) {
+    #if 0
+    BNTextureData td = bnTextureData3DCreate(
+        context, slot, BN_FLOAT32,
+        m_cloudData->size().x, m_cloudData->size().y, m_cloudData->size().z,
+        m_cloudData->data());
+    #else
+    BNTextureData td = bnTextureData2DCreate(
+      context, slot, BN_FLOAT32,
+      m_cloudData->size().x, m_cloudData->size().y,
+      m_cloudData->data());
+    #endif
+    bnSetObject(sf, "cloudData", td);
+    bnRelease(td);
+  }
+  
+  bnCommit(sf);
+  return sf;
+}
+
+box3 CloudSpatialField::bounds() const
+{
+  float totalRadius = m_sphereRadius + m_maxHeight;
   helium::float3 center = m_sphereCenter;
   return box3(center - totalRadius, center + totalRadius);
 }

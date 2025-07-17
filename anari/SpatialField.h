@@ -145,6 +145,28 @@ namespace barney_device {
     helium::IntrusivePtr<Array2D> m_normalMap;
   };
 
+  struct CloudSpatialField : public SpatialField
+  {
+    CloudSpatialField(BarneyGlobalState *s);
+    void commitParameters() override;
+    void finalize() override;
+
+    BNScalarField createBarneyScalarField() const override;
+
+    box3 bounds() const override;
+    bool isValid() const override;
+
+    float m_sphereRadius{0.5f};
+    float m_maxHeight{0.2f};
+    math::float3 m_sphereCenter{0.f};
+
+    #if 0
+    helium::IntrusivePtr<Array3D> m_cloudData;
+    #else
+    helium::IntrusivePtr<Array2D> m_cloudData;
+    #endif
+  };
+
 } // namespace barney_device
 
 BARNEY_ANARI_TYPEFOR_SPECIALIZATION(barney_device::SpatialField *,

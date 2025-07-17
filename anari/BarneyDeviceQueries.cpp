@@ -137,7 +137,7 @@ const char ** query_object_types(ANARIDataType type) {
       }
       case ANARI_SPATIAL_FIELD:
       {
-         static const char *ANARI_SPATIAL_FIELD_subtypes[] = {"structuredRegular", "planet", 0};
+         static const char *ANARI_SPATIAL_FIELD_subtypes[] = {"structuredRegular", "planet", "cloud", 0};
          return ANARI_SPATIAL_FIELD_subtypes;
       }
       case ANARI_VOLUME:

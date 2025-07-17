@@ -22,6 +22,7 @@
 #include "barney/umesh/common/UMeshField.h"
 #include "barney/amr/BlockStructuredField.h"
 #include "barney/volume/PlanetField.h"
+#include "barney/volume/CloudField.h"
 
 namespace BARNEY_NS {
 
@@ -51,6 +52,8 @@ namespace BARNEY_NS {
       return std::make_shared<BlockStructuredField>(context,devices);
     if (type == "planet")
       return std::make_shared<PlanetField>(context,devices);
+    if (type == "cloud")
+      return std::make_shared<CloudField>(context,devices);
     
     context->warn_unsupported_object("ScalarField",type);
     return {};

@@ -145,6 +145,10 @@ set(HOST_SOURCES
   volume/PlanetField.h
   volume/PlanetField.cu
   
+  # *cloud* volumes
+  volume/CloudField.h
+  volume/CloudField.cu
+  
   # actual geometry types
   geometry/Geometry.h
   geometry/Geometry.cpp
@@ -231,6 +235,7 @@ set(DEVICE_PROGRAM_SOURCES
   geometry/Cones.dev.cu
   volume/StructuredData.dev.cu
   volume/PlanetField.dev.cu
+  volume/CloudField.dev.cu
   umesh/mc/UMeshMC.dev.cu
 #  umesh/os/AWT.dev.cu
   amr/BlockStructuredMC.dev.cu

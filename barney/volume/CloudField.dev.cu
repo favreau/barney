@@ -1,5 +1,5 @@
 // ======================================================================== //
-// Copyright 2023-2025 Ingo Wald                                            //
+// Copyright 2023-2024 Ingo Wald                                            //
 //                                                                          //
 // Licensed under the Apache License, Version 2.0 (the "License");          //
 // you may not use this file except in compliance with the License.         //
@@ -14,7 +14,7 @@
 // limitations under the License.                                           //
 // ======================================================================== //
 
-#include "barney/volume/PlanetField.h"
+#include "barney/volume/CloudField.h"
 #include "barney/volume/MCAccelerator.h"
 #include "rtcore/TraceInterface.h"
 
@@ -22,7 +22,7 @@ RTC_DECLARE_GLOBALS(BARNEY_NS::render::OptixGlobals);
 
 namespace BARNEY_NS {
 
-  struct MCAccel_Planet_Programs {
+  struct MCAccel_Cloud_Programs {
     static inline __rtc_device
     void bounds(const rtc::TraceInterface &ti,
                 const void *geomData,
@@ -30,7 +30,7 @@ namespace BARNEY_NS {
                 const int32_t primID)
     {
 #if RTC_DEVICE_CODE
-      MCVolumeAccel<PlanetSampler>
+      MCVolumeAccel<CloudSampler>
         ::boundsProg(ti,geomData,bounds,primID);
 #endif
     }
@@ -39,10 +39,10 @@ namespace BARNEY_NS {
     void intersect(rtc::TraceInterface &ti)
     {
 #if RTC_DEVICE_CODE
-      // Custom Planet sphere intersection - only trace within sphere bounds
+      // Custom Cloud sphere intersection - only trace within sphere bounds
       const void *pd = ti.getProgramData();
-      const MCVolumeAccel<PlanetSampler>::DD &self = 
-        *(typename MCVolumeAccel<PlanetSampler>::DD*)pd;
+      const MCVolumeAccel<CloudSampler>::DD &self = 
+        *(typename MCVolumeAccel<CloudSampler>::DD*)pd;
       const render::World::DD &world = render::OptixGlobals::get(ti).world;
       
       // Get ray in object space
@@ -50,22 +50,22 @@ namespace BARNEY_NS {
       vec3f obj_org = ti.getObjectRayOrigin();
       vec3f obj_dir = ti.getObjectRayDirection();
       
-      // Extract Planet parameters from sampler
-      const PlanetSampler::DD &planetSampler = self.volume.sfSampler;
-      float sphereRadius = planetSampler.sphereRadius;
-      float atmosphereThickness = planetSampler.atmosphereThickness;
-      vec3f sphereCenter = planetSampler.sphereCenter;
+      // Extract Cloud parameters from sampler
+      const CloudSampler::DD &cloudSampler = self.volume.sfSampler;
+      float sphereRadius = cloudSampler.sphereRadius;
+      float maxHeight = cloudSampler.maxHeight;
+      vec3f sphereCenter = cloudSampler.sphereCenter;
       
-      // Check ray-sphere intersection for outer atmosphere boundary
+      // Check ray-sphere intersection for outer cloud boundary
       vec3f oc = obj_org - sphereCenter;
-      float totalRadius = sphereRadius + atmosphereThickness;
+      float totalRadius = sphereRadius + maxHeight;
       float a = dot(obj_dir, obj_dir);
       float b = 2.0f * dot(oc, obj_dir);
       float c = dot(oc, oc) - totalRadius * totalRadius;
       
       float discriminant = b * b - 4.0f * a * c;
       if (discriminant < 0.0f)
-        return; // No intersection with atmosphere
+        return; // No intersection with cloud sphere
         
       float sqrt_disc = sqrtf(discriminant);
       float t_near = (-b - sqrt_disc) / (2.0f * a);
@@ -121,18 +121,9 @@ namespace BARNEY_NS {
                   vec3f P_obj = obj_org + cellTRange.upper * obj_dir;
                   vec3f P = ti.transformPointFromObjectToWorldSpace(P_obj);
                   
-                  vec3f normal = normalize(P);
-                  if (planetSampler.normalTex) {
-                    const float theta = acosf(clamp(normal.y, -1.0f, 1.0f));
-                    const float phi = atan2f(normal.z, normal.x) + M_PI;
-                    const vec2f uv(phi / (2.0f * M_PI), theta / M_PI);
-                    const vec4f normal_tex = rtc::tex2D<vec4f>(planetSampler.normalTex, uv.x, uv.y);
-                    normal = normalize(vec3f(normal_tex.x, normal_tex.y, normal_tex.z));
-                  }
-                  ray.setVolumeHit(P, normal,
-                                  cellTRange.upper,
-                                  getPos(sample));
-
+                  ray.setVolumeHit(P, obj_dir,
+                                   cellTRange.upper,
+                                   getPos(sample));
                   ti.reportIntersection(cellTRange.upper, 0);
                   return false;
                 },
@@ -159,5 +150,5 @@ namespace BARNEY_NS {
     }
   };
   
-  RTC_EXPORT_USER_GEOM(PlanetMC,PlanetField::DD,MCAccel_Planet_Programs,false,false);
+  RTC_EXPORT_USER_GEOM(CloudMC,CloudField::DD,MCAccel_Cloud_Programs,false,false);
 } 
