@@ -120,9 +120,11 @@ namespace BARNEY_NS {
   {
     DD dd;
     
-    // Set texture object
-    if (sf->cloudData)
+    // Set texture object and dimensions
+    if (sf->cloudData) {
       dd.cloudDataTex = sf->cloudData->getDD(device);
+      dd.textureDims = sf->cloudTextureData->dims; // Get texture dimensions for coordinate calculation
+    }
     
     // Set sphere parameters
     dd.sphereRadius = sf->sphereRadius;
@@ -172,7 +174,7 @@ namespace BARNEY_NS {
                              const Object::SP &value) 
   {
     BNTextureAddressMode addressModes[3] = {
-      BN_TEXTURE_WRAP, BN_TEXTURE_WRAP, BN_TEXTURE_CLAMP
+      BN_TEXTURE_CLAMP, BN_TEXTURE_CLAMP, BN_TEXTURE_CLAMP
     };
     
     if (member == "cloudData") {

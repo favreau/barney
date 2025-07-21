@@ -502,7 +502,7 @@ CloudSpatialField::CloudSpatialField(BarneyGlobalState *s) : SpatialField(s) {}
 void CloudSpatialField::commitParameters()
 {
   Object::commitParameters();
-  #if 0
+  #if 1  // 3DTEXTURE
   m_cloudData = getParamObject<helium::Array3D>("cloudData");
   #else
   m_cloudData = getParamObject<helium::Array2D>("cloudData");
@@ -540,7 +540,7 @@ BNScalarField CloudSpatialField::createBarneyScalarField() const
   
   // Set cloud data texture if provided
   if (m_cloudData) {
-    #if 0
+    #if 1 // 3DTEXTURE
     BNTextureData td = bnTextureData3DCreate(
         context, slot, BN_FLOAT32,
         m_cloudData->size().x, m_cloudData->size().y, m_cloudData->size().z,

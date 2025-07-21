@@ -93,6 +93,7 @@ namespace BARNEY_NS {
 #endif
       
       rtc::TextureObject cloudDataTex{nullptr};
+      vec3i textureDims{0,0,0}; // Add texture dimensions for proper coordinate calculation
       
       float sphereRadius;
       vec3f sphereCenter;
@@ -130,18 +131,22 @@ namespace BARNEY_NS {
     if (dist < sphereRadius || normalizedHeight >= 1.0f)
       return 0.0f;
     
-    // For 3D textures with non-normalized coordinates, we need to get the texture dimensions
-    // Since we don't have direct access to dimensions here, we'll assume the texture
-    // is designed with the z-axis representing normalized height [0,1] mapped to [0, dims.z-1]
-    // For now, we'll use normalizedHeight directly and let the texture sampling handle it
-    
-    // Sample from 3D cloud texture using normalized height as z-coordinate
-    #if 0
-    const float density = rtc::tex3D<float>(cloudDataTex, uv.x, uv.y, normalizedHeight);
+    // For 3D textures with non-normalized coordinates, convert to texture space
+    // and add 0.5 offset for proper texel center sampling (like StructuredData)
+    #if 1  // 3DTEXTURE
+    if (textureDims.x > 0 && textureDims.y > 0 && textureDims.z > 0) {
+      // Convert normalized coordinates to texture coordinates and add texel center offset
+      float texX = uv.x * float(textureDims.x - 1) + 0.5f;
+      float texY = uv.y * float(textureDims.y - 1) + 0.5f;
+      float texZ = normalizedHeight * float(textureDims.z - 1) + 0.5f;
+      const float density = rtc::tex3D<float>(cloudDataTex, texX, texY, texZ);
+      return density;
+    }
+    return 0.0f; // No valid texture dimensions
     #else
     const float density = rtc::tex2D<float>(cloudDataTex, uv.x, uv.y);
-    #endif
     return density;
+    #endif
   }
 #endif
 

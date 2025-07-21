@@ -160,7 +160,7 @@ namespace barney_device {
     float m_maxHeight{0.2f};
     math::float3 m_sphereCenter{0.f};
 
-    #if 0
+    #if 1  // 3DTEXTURE
     helium::IntrusivePtr<Array3D> m_cloudData;
     #else
     helium::IntrusivePtr<Array2D> m_cloudData;
