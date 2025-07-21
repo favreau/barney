@@ -502,15 +502,10 @@ CloudSpatialField::CloudSpatialField(BarneyGlobalState *s) : SpatialField(s) {}
 void CloudSpatialField::commitParameters()
 {
   Object::commitParameters();
-  #if 1  // 3DTEXTURE
   m_cloudData = getParamObject<helium::Array3D>("cloudData");
-  #else
-  m_cloudData = getParamObject<helium::Array2D>("cloudData");
-  #endif
   
-  m_sphereRadius = getParam<float>("sphereRadius", 0.5f);
-  m_maxHeight = getParam<float>("maxHeight", 0.2f);
-  m_sphereCenter = getParam<helium::float3>("sphereCenter", helium::float3(0.f));
+  m_planetRadius = getParam<float>("planetRadius", DEFAULT_PLANET_RADIUS);
+  m_atmosphereThickness = getParam<float>("atmosphereThickness", DEFAULT_ATMOSPHERE_THICKNESS);
 }
 
 void CloudSpatialField::finalize()
@@ -534,23 +529,15 @@ BNScalarField CloudSpatialField::createBarneyScalarField() const
   BNScalarField sf = bnScalarFieldCreate(context, slot, "cloud");
   
   // Set cloud parameters
-  bnSet1f(sf, "sphereRadius", m_sphereRadius);
-  bnSet1f(sf, "maxHeight", m_maxHeight);
-  bnSet3fc(sf, "sphereCenter", m_sphereCenter);
+  bnSet1f(sf, "planetRadius", m_planetRadius);
+  bnSet1f(sf, "atmosphereThickness", m_atmosphereThickness);
   
   // Set cloud data texture if provided
   if (m_cloudData) {
-    #if 1 // 3DTEXTURE
     BNTextureData td = bnTextureData3DCreate(
         context, slot, BN_FLOAT32,
         m_cloudData->size().x, m_cloudData->size().y, m_cloudData->size().z,
         m_cloudData->data());
-    #else
-    BNTextureData td = bnTextureData2DCreate(
-      context, slot, BN_FLOAT32,
-      m_cloudData->size().x, m_cloudData->size().y,
-      m_cloudData->data());
-    #endif
     bnSetObject(sf, "cloudData", td);
     bnRelease(td);
   }
@@ -561,9 +548,8 @@ BNScalarField CloudSpatialField::createBarneyScalarField() const
 
 box3 CloudSpatialField::bounds() const
 {
-  float totalRadius = m_sphereRadius + m_maxHeight;
-  helium::float3 center = m_sphereCenter;
-  return box3(center - totalRadius, center + totalRadius);
+  float totalRadius = m_planetRadius + m_atmosphereThickness;
+  return box3(-math::float3(totalRadius), math::float3(totalRadius));
 }
 
 } // namespace barney_device

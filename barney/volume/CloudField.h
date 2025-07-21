@@ -34,17 +34,15 @@ namespace BARNEY_NS {
       Supported settable fields:
 
       - "cloudData" (BNTexture3D) : 3D float texture array containing cloud density data
-      - "sphereRadius" (float) : Radius of the base sphere (default: 0.5 for unit volume)
-      - "sphereCenter" (vec3f) : Center of the sphere (default: (0,0,0))
-      - "maxHeight" (float) : Maximum height above sphere surface (default: 0.2)
+      - "planetRadius" (float) : Radius of the base sphere (default: 0.9 for unit volume)
+      - "atmosphereThickness" (float) : Maximum height above sphere surface (default: 0.01)
   */
   struct CloudField : public ScalarField
   {
     /*! device data for this class */
     struct DD : public ScalarField::DD {
-      float sphereRadius;
-      vec3f sphereCenter;
-      float maxHeight;
+      float planetRadius;
+      float atmosphereThickness;
     };
 
     /*! construct a new cloud scalar field */
@@ -55,7 +53,6 @@ namespace BARNEY_NS {
     // ------------------------------------------------------------------
     /*! @{ parameter set/commit interface */
     bool set1f(const std::string &member, const float &value) override;
-    bool set3f(const std::string &member, const vec3f &value) override;
     bool setObject(const std::string &member, const Object::SP &value) override;
     void commit() override;
     /*! @} */
@@ -76,9 +73,8 @@ namespace BARNEY_NS {
     std::vector<CLD> perLogical;
     
     // Cloud parameters
-    float sphereRadius = 0.5f;
-    vec3f sphereCenter = vec3f(0.0f);
-    float maxHeight = 0.2f;
+    float planetRadius = 0.9f;
+    float atmosphereThickness = 0.01f;
   };
 
   /*! sampler object for CloudField, handling spherical coordinate sampling */
@@ -94,10 +90,9 @@ namespace BARNEY_NS {
       
       rtc::TextureObject cloudDataTex{nullptr};
       vec3i textureDims{0,0,0}; // Add texture dimensions for proper coordinate calculation
-      
-      float sphereRadius;
-      vec3f sphereCenter;
-      float maxHeight;
+
+      float planetRadius;
+      float atmosphereThickness;
     };
 
     void build() override {}
@@ -110,30 +105,24 @@ namespace BARNEY_NS {
   inline __rtc_device
   float CloudSampler::DD::sample(const vec3f P, bool dbg) const
   {
-    vec3f relPos = P - sphereCenter;
-    float dist = length(relPos);
-    
-    // Outside cloud volume - no density
-    // if (dist > sphereRadius + maxHeight)
-    //   return 0.0f;
+    float dist = length(P);
     
     // Convert to spherical coordinates
-    const vec3f dir = normalize(relPos);
+    const vec3f dir = normalize(P);
     const float theta = acosf(clamp(dir.y, -1.0f, 1.0f));
     const float phi = atan2f(dir.z, dir.x) + M_PI;
     const vec2f uv(phi / (2.0f * M_PI), theta / M_PI);
     
     // Calculate height above sphere surface
-    const float height = max(0.0f, dist - sphereRadius);
-    const float normalizedHeight = clamp(height / maxHeight, 0.0f, 1.0f);
+    const float height = max(0.0f, dist - planetRadius);
+    const float normalizedHeight = clamp(height / atmosphereThickness, 0.0f, 1.0f);
     
     // If we're inside the sphere or above max height, no cloud density
-    if (dist < sphereRadius || normalizedHeight >= 1.0f)
+    if (dist < planetRadius || normalizedHeight >= 1.0f)
       return 0.0f;
     
     // For 3D textures with non-normalized coordinates, convert to texture space
     // and add 0.5 offset for proper texel center sampling (like StructuredData)
-    #if 1  // 3DTEXTURE
     if (textureDims.x > 0 && textureDims.y > 0 && textureDims.z > 0) {
       // Convert normalized coordinates to texture coordinates and add texel center offset
       float texX = uv.x * float(textureDims.x - 1) + 0.5f;
@@ -143,10 +132,6 @@ namespace BARNEY_NS {
       return density;
     }
     return 0.0f; // No valid texture dimensions
-    #else
-    const float density = rtc::tex2D<float>(cloudDataTex, uv.x, uv.y);
-    return density;
-    #endif
   }
 #endif
 

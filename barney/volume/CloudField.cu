@@ -84,10 +84,10 @@ namespace BARNEY_NS {
   void CloudField::buildMCs(MCGrid &mcGrid) 
   {
     // Create macro cell grid that covers the spherical volume
-    // The sphere is centered at origin with radius sphereRadius + maxHeight
-    float totalRadius = sphereRadius + maxHeight;
-    vec3f boxMin = sphereCenter - vec3f(totalRadius);
-    vec3f boxMax = sphereCenter + vec3f(totalRadius);
+    // The sphere is centered at origin with radius planetRadius + atmosphereThickness
+    float totalRadius = planetRadius + atmosphereThickness;
+    vec3f boxMin = -vec3f(totalRadius);
+    vec3f boxMax = vec3f(totalRadius);
     
     worldBounds = box3f(boxMin, boxMax);
     
@@ -127,9 +127,8 @@ namespace BARNEY_NS {
     }
     
     // Set sphere parameters
-    dd.sphereRadius = sf->sphereRadius;
-    dd.sphereCenter = sf->sphereCenter;
-    dd.maxHeight = sf->maxHeight;
+    dd.planetRadius = sf->planetRadius;
+    dd.atmosphereThickness = sf->atmosphereThickness;
     
     return dd;
   }
@@ -147,23 +146,12 @@ namespace BARNEY_NS {
   bool CloudField::set1f(const std::string &member,
                          const float &value) 
   {
-    if (member == "sphereRadius") {
-      sphereRadius = value;
+    if (member == "planetRadius") {
+      planetRadius = value;
       return true;
     }
-    if (member == "maxHeight") {
-      maxHeight = value;
-      return true;
-    }
-    return false;
-  }
-
-  // ==================================================================
-  bool CloudField::set3f(const std::string &member,
-                         const vec3f &value) 
-  {
-    if (member == "sphereCenter") {
-      sphereCenter = value;
+    if (member == "atmosphereThickness") {
+      atmosphereThickness = value;
       return true;
     }
     return false;
@@ -191,18 +179,17 @@ namespace BARNEY_NS {
   // ==================================================================
   void CloudField::commit() 
   {
-    float totalRadius = sphereRadius + maxHeight;
-    worldBounds.lower = sphereCenter - vec3f(totalRadius);
-    worldBounds.upper = sphereCenter + vec3f(totalRadius);
+    float totalRadius = planetRadius + atmosphereThickness;
+    worldBounds.lower = -vec3f(totalRadius);
+    worldBounds.upper = vec3f(totalRadius);
   }
 
   CloudField::DD CloudField::getDD(Device *device)
   {
     DD dd;
     dd.worldBounds = worldBounds;
-    dd.sphereRadius = sphereRadius;
-    dd.sphereCenter = sphereCenter;
-    dd.maxHeight = maxHeight;
+    dd.planetRadius = planetRadius;
+    dd.atmosphereThickness = atmosphereThickness;
     return dd;
   }
   

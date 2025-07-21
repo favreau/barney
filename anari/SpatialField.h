@@ -156,15 +156,13 @@ namespace barney_device {
     box3 bounds() const override;
     bool isValid() const override;
 
-    float m_sphereRadius{0.5f};
-    float m_maxHeight{0.2f};
-    math::float3 m_sphereCenter{0.f};
+    static constexpr float DEFAULT_PLANET_RADIUS = 0.9f;
+    static constexpr float DEFAULT_ATMOSPHERE_THICKNESS = 0.01f;
 
-    #if 1  // 3DTEXTURE
+    float m_planetRadius{DEFAULT_PLANET_RADIUS};
+    float m_atmosphereThickness{DEFAULT_ATMOSPHERE_THICKNESS};
+
     helium::IntrusivePtr<Array3D> m_cloudData;
-    #else
-    helium::IntrusivePtr<Array2D> m_cloudData;
-    #endif
   };
 
 } // namespace barney_device

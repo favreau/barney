@@ -52,13 +52,12 @@ namespace BARNEY_NS {
       
       // Extract Cloud parameters from sampler
       const CloudSampler::DD &cloudSampler = self.volume.sfSampler;
-      float sphereRadius = cloudSampler.sphereRadius;
-      float maxHeight = cloudSampler.maxHeight;
-      vec3f sphereCenter = cloudSampler.sphereCenter;
+      float planetRadius = cloudSampler.planetRadius;
+      float atmosphereThickness = cloudSampler.atmosphereThickness;
       
       // Check ray-sphere intersection for outer cloud boundary
-      vec3f oc = obj_org - sphereCenter;
-      float totalRadius = sphereRadius + maxHeight;
+      vec3f oc = obj_org;
+      float totalRadius = planetRadius + atmosphereThickness;
       float a = dot(obj_dir, obj_dir);
       float b = 2.0f * dot(oc, obj_dir);
       float c = dot(oc, oc) - totalRadius * totalRadius;
@@ -102,8 +101,8 @@ namespace BARNEY_NS {
                   // Ensure we're within the sphere for this cell
                   vec3f cellOrg = obj_org + cellTRange.lower * obj_dir;
                   vec3f cellEnd = obj_org + cellTRange.upper * obj_dir;
-                  float distOrg = length(cellOrg - sphereCenter);
-                  float distEnd = length(cellEnd - sphereCenter);
+                  float distOrg = length(cellOrg);
+                  float distEnd = length(cellEnd);
                   
                   if (distOrg > totalRadius && distEnd > totalRadius)
                     return true; // Entire cell is outside sphere
