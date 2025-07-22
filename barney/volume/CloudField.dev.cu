@@ -55,25 +55,55 @@ namespace BARNEY_NS {
       float planetRadius = cloudSampler.planetRadius;
       float atmosphereThickness = cloudSampler.atmosphereThickness;
       
-      // Check ray-sphere intersection for outer cloud boundary
+      // Check ray-sphere intersection for atmospheric shell (between planetRadius and totalRadius)
       vec3f oc = obj_org;
       float totalRadius = planetRadius + atmosphereThickness;
       float a = dot(obj_dir, obj_dir);
       float b = 2.0f * dot(oc, obj_dir);
-      float c = dot(oc, oc) - totalRadius * totalRadius;
       
-      float discriminant = b * b - 4.0f * a * c;
-      if (discriminant < 0.0f)
-        return; // No intersection with cloud sphere
+      // Outer sphere intersection
+      float c_outer = dot(oc, oc) - totalRadius * totalRadius;
+      float discriminant_outer = b * b - 4.0f * a * c_outer;
+      if (discriminant_outer < 0.0f)
+        return; // No intersection with outer atmosphere sphere
         
-      float sqrt_disc = sqrtf(discriminant);
-      float t_near = (-b - sqrt_disc) / (2.0f * a);
-      float t_far = (-b + sqrt_disc) / (2.0f * a);
+      float sqrt_disc_outer = sqrtf(discriminant_outer);
+      float t_outer_near = (-b - sqrt_disc_outer) / (2.0f * a);
+      float t_outer_far = (-b + sqrt_disc_outer) / (2.0f * a);
       
-      // Clamp to valid ray range
-      range1f tRange = { max(ti.getRayTmin(), t_near), min(ti.getRayTmax(), t_far) };
+      // Inner sphere intersection (planet surface)
+      float c_inner = dot(oc, oc) - planetRadius * planetRadius;
+      float discriminant_inner = b * b - 4.0f * a * c_inner;
+      
+      range1f tRange = { ti.getRayTmin(), ti.getRayTmax() };
+      
+      if (discriminant_inner >= 0.0f) {
+        // Ray intersects inner planet sphere - exclude interior
+        float sqrt_disc_inner = sqrtf(discriminant_inner);
+        float t_inner_near = (-b - sqrt_disc_inner) / (2.0f * a);
+        float t_inner_far = (-b + sqrt_disc_inner) / (2.0f * a);
+        
+        // Ray-marching only in atmospheric shell - exclude planet interior
+        if (t_inner_near > tRange.lower && t_inner_near < tRange.upper) {
+          // Ray enters planet from outside - march until planet surface
+          tRange.upper = min(tRange.upper, t_inner_near);
+        }
+        if (t_inner_far > tRange.lower && t_inner_far < tRange.upper) {
+          // Ray exits planet - start marching from planet surface
+          tRange.lower = max(tRange.lower, t_inner_far);
+        }
+        if (t_inner_near <= tRange.lower && t_inner_far >= tRange.upper) {
+          // Ray entirely inside planet - no atmospheric ray-marching
+          return;
+        }
+      }
+      
+      // Constrain to outer atmosphere boundary
+      tRange.lower = max(tRange.lower, t_outer_near);
+      tRange.upper = min(tRange.upper, t_outer_far);
+      
       if (tRange.lower >= tRange.upper)
-        return; // No valid intersection range
+        return; // No valid intersection range in atmospheric shell
       
       // Convert to macro cell grid space for DDA traversal
       vec3f mcGridOrigin = self.mcGrid.gridOrigin;
@@ -98,14 +128,19 @@ namespace BARNEY_NS {
                   vec4f sample = 0.f;
                   range1f cellTRange = {max(t0, tRange.lower), min(t1, tRange.upper)};
                   
-                  // Ensure we're within the sphere for this cell
+                  // Ensure we're within the atmospheric shell for this cell
                   vec3f cellOrg = obj_org + cellTRange.lower * obj_dir;
                   vec3f cellEnd = obj_org + cellTRange.upper * obj_dir;
                   float distOrg = length(cellOrg);
                   float distEnd = length(cellEnd);
                   
+                  // Skip cell if entirely outside atmosphere
                   if (distOrg > totalRadius && distEnd > totalRadius)
-                    return true; // Entire cell is outside sphere
+                    return true; // Entire cell is outside atmosphere
+                  
+                  // Skip cell if entirely inside planet
+                  if (distOrg < planetRadius && distEnd < planetRadius)
+                    return true; // Entire cell is inside planet
                   
                   if (!Woodcock::sampleRange(sample,
                                            self.volume,

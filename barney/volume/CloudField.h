@@ -58,7 +58,7 @@ namespace BARNEY_NS {
     /*! @} */
     // ------------------------------------------------------------------
     
-    DD getDD(Device *device);
+    DD getDD(Device *device); 
     VolumeAccel::SP createAccel(Volume *volume) override;
     void buildMCs(MCGrid &macroCells) override;
 

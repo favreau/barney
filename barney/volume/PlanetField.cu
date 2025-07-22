@@ -84,9 +84,9 @@ namespace BARNEY_NS {
   {
     // Create macro cell grid that covers the spherical volume
     // The sphere is centered at origin with radius sphereRadius + atmosphereThickness
-    float totalRadius = sphereRadius + atmosphereThickness;
-    vec3f boxMin = sphereCenter - vec3f(totalRadius);
-    vec3f boxMax = sphereCenter + vec3f(totalRadius);
+    float totalRadius = 1.f;
+    vec3f boxMin = -vec3f(totalRadius);
+    vec3f boxMax = vec3f(totalRadius);
     
     worldBounds = box3f(boxMin, boxMax);
     
@@ -130,8 +130,6 @@ namespace BARNEY_NS {
     // Set sphere parameters
     dd.sphereRadius = sf->sphereRadius;
     dd.elevationScale = sf->elevationScale;
-    dd.atmosphereThickness = sf->atmosphereThickness;
-    dd.sphereCenter = sf->sphereCenter;
     
     return dd;
   }
@@ -155,37 +153,6 @@ namespace BARNEY_NS {
     }
     if (member == "elevationScale") {
       elevationScale = value;
-      return true;
-    }
-    if (member == "atmosphereThickness") {
-      atmosphereThickness = value;
-      return true;
-    }
-    if (member == "coreDensity") {
-      coreDensity = value;
-      return true;
-    }
-    if (member == "mantleDensity") {
-      mantleDensity = value;
-      return true;
-    }
-    if (member == "crustDensity") {
-      crustDensity = value;
-      return true;
-    }
-    if (member == "atmosphereDensity") {
-      atmosphereDensity = value;
-      return true;
-    }
-    return false;
-  }
-
-  // ==================================================================
-  bool PlanetField::set3f(const std::string &member,
-                         const vec3f &value) 
-  {
-    if (member == "sphereCenter") {
-      sphereCenter = value;
       return true;
     }
     return false;
@@ -229,9 +196,8 @@ namespace BARNEY_NS {
   // ==================================================================
   void PlanetField::commit() 
   {
-    float totalRadius = sphereRadius + atmosphereThickness;
-    worldBounds.lower = sphereCenter - vec3f(totalRadius);
-    worldBounds.upper = sphereCenter + vec3f(totalRadius);
+    worldBounds.lower = -vec3f(sphereRadius);
+    worldBounds.upper = vec3f(sphereRadius);
   }
 
   PlanetField::DD PlanetField::getDD(Device *device)
@@ -240,12 +206,6 @@ namespace BARNEY_NS {
     dd.worldBounds = worldBounds;
     dd.sphereRadius = sphereRadius;
     dd.elevationScale = elevationScale;
-    dd.atmosphereThickness = atmosphereThickness;
-    dd.sphereCenter = sphereCenter;
-    dd.coreDensity = coreDensity;
-    dd.mantleDensity = mantleDensity;
-    dd.crustDensity = crustDensity;
-    dd.atmosphereDensity = atmosphereDensity;
     return dd;
   }
   

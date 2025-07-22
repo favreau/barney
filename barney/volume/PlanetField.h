@@ -49,12 +49,6 @@ namespace BARNEY_NS {
     struct DD : public ScalarField::DD {
       float sphereRadius;
       float elevationScale;
-      float atmosphereThickness;
-      vec3f sphereCenter;
-      float coreDensity;
-      float mantleDensity;
-      float crustDensity;
-      float atmosphereDensity;
     };
 
     /*! construct a new planet scalar field */
@@ -65,7 +59,6 @@ namespace BARNEY_NS {
     // ------------------------------------------------------------------
     /*! @{ parameter set/commit interface */
     bool set1f(const std::string &member, const float &value) override;
-    bool set3f(const std::string &member, const vec3f &value) override;
     bool setObject(const std::string &member, const Object::SP &value) override;
     void commit() override;
     /*! @} */
@@ -93,12 +86,6 @@ namespace BARNEY_NS {
     // Planet parameters
     float sphereRadius = 0.5f;
     float elevationScale = 0.1f;
-    float atmosphereThickness = 0.2f;
-    vec3f sphereCenter = vec3f(0.0f);
-    float coreDensity = 1.0f;
-    float mantleDensity = 0.8f;
-    float crustDensity = 0.6f;
-    float atmosphereDensity = 0.1f;
   };
 
   /*! sampler object for PlanetField, handling spherical coordinate sampling */
@@ -115,11 +102,8 @@ namespace BARNEY_NS {
       rtc::TextureObject elevationTex{nullptr};
       rtc::TextureObject diffuseTex{nullptr}; 
       rtc::TextureObject normalTex{nullptr};
-      
-      float sphereRadius;
       float elevationScale;
-      float atmosphereThickness;
-      vec3f sphereCenter;
+      float sphereRadius;
     };
 
     void build() override {}
@@ -132,15 +116,10 @@ namespace BARNEY_NS {
   inline __rtc_device
   float PlanetSampler::DD::sample(const vec3f P, bool dbg) const
   {
-    vec3f relPos = P - sphereCenter;
-    float dist = length(relPos);
-    
-    // Outside atmosphere - no density
-    if (dist > sphereRadius + atmosphereThickness)
-      return 0.0f;
+    float dist = length(P);
     
     // Convert to spherical coordinates for elevation lookup
-    const vec3f dir = normalize(relPos);
+    const vec3f dir = normalize(P);
     const float theta = acosf(clamp(dir.y, -1.0f, 1.0f));
     const float phi = atan2f(dir.z, dir.x) + M_PI;
     const vec2f uv(phi / (2.0f * M_PI), theta / M_PI);
@@ -148,22 +127,27 @@ namespace BARNEY_NS {
     // Get surface elevation
     const float elevation = rtc::tex2D<float>(elevationTex, uv.x, uv.y);
     
-    const float coreRadius = sphereRadius * 0.35f;
+    const float innerCoreRadius = 0.127f;
+    const float outterCoreRadius = innerCoreRadius + 0.220f;
+    const float mantleRadius = outterCoreRadius + 0.285f;
+
     const float surfaceElevation = sphereRadius + elevationScale * elevation;
-    if (dist < coreRadius) {
-      // Core
-      return 0.1f * (dist / coreRadius);
+    if (dist < innerCoreRadius) {
+      return 0.02f;
     }
-    else if (dist >= coreRadius && dist < sphereRadius) {
+    else if (dist < outterCoreRadius) {
+      return 0.04f;
+    }
+    else if (dist < mantleRadius) {
+      return 0.06f;
+    }
+    else if (dist < sphereRadius) {
       // Between core and surface
-      return 0.0f;
+      return 0.8f;
     }
     else if (dist >= sphereRadius && dist < surfaceElevation) {
       // Surface
       return 0.1f + 0.8f * elevation;
-    } else if (dist >= surfaceElevation && dist < sphereRadius + atmosphereThickness) {
-      // Atmosphere
-      return 0.9f + 0.1f * ((dist - sphereRadius) / atmosphereThickness);
     }
     
     return 0.0f;

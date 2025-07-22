@@ -137,7 +137,7 @@ namespace BARNEY_NS {
     // ------------------------------------------------------------------
 
     
-    DD getDD(Device *device);
+    DD getDD(Device *device); 
 
     void buildMCs(MCGrid &macroCells) override;
 

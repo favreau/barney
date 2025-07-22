@@ -39,7 +39,7 @@ namespace BARNEY_NS {
       /*! world bounds, CLIPPED TO DOMAIN (if non-empty domain is present!) */
       box3f                worldBounds;
     };
-    DD getDD(Device *device) const { return { worldBounds }; }
+    DD getDD(Device *device) { return { worldBounds }; }
     
     ScalarField(Context *context,
                 const DevGroup::SP &devices,

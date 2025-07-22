@@ -53,12 +53,10 @@ namespace BARNEY_NS {
       // Extract Planet parameters from sampler
       const PlanetSampler::DD &planetSampler = self.volume.sfSampler;
       float sphereRadius = planetSampler.sphereRadius;
-      float atmosphereThickness = planetSampler.atmosphereThickness;
-      vec3f sphereCenter = planetSampler.sphereCenter;
       
       // Check ray-sphere intersection for outer atmosphere boundary
-      vec3f oc = obj_org - sphereCenter;
-      float totalRadius = sphereRadius + atmosphereThickness;
+      vec3f oc = obj_org;
+      float totalRadius = 1.f;
       float a = dot(obj_dir, obj_dir);
       float b = 2.0f * dot(oc, obj_dir);
       float c = dot(oc, oc) - totalRadius * totalRadius;
@@ -102,8 +100,8 @@ namespace BARNEY_NS {
                   // Ensure we're within the sphere for this cell
                   vec3f cellOrg = obj_org + cellTRange.lower * obj_dir;
                   vec3f cellEnd = obj_org + cellTRange.upper * obj_dir;
-                  float distOrg = length(cellOrg - sphereCenter);
-                  float distEnd = length(cellEnd - sphereCenter);
+                  float distOrg = length(cellOrg);
+                  float distEnd = length(cellEnd);
                   
                   if (distOrg > totalRadius && distEnd > totalRadius)
                     return true; // Entire cell is outside sphere

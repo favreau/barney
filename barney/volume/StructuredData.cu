@@ -118,6 +118,13 @@ namespace BARNEY_NS {
     dd.numCells = sf->numCells;
     return dd;
   }
+
+  StructuredData::DD StructuredData::getDD(Device *device)
+  {
+    DD dd;
+    (ScalarField::DD&)dd = ScalarField::getDD(device);
+    return dd;
+  }
   
   VolumeAccel::SP StructuredData::createAccel(Volume *volume) 
   {

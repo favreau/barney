@@ -502,10 +502,23 @@ CloudSpatialField::CloudSpatialField(BarneyGlobalState *s) : SpatialField(s) {}
 void CloudSpatialField::commitParameters()
 {
   Object::commitParameters();
+  
+  // Store previous values to detect changes
+  auto prevCloudData = m_cloudData;
+  float prevPlanetRadius = m_planetRadius;
+  float prevAtmosphereThickness = m_atmosphereThickness;
+  
   m_cloudData = getParamObject<helium::Array3D>("cloudData");
   
   m_planetRadius = getParam<float>("planetRadius", DEFAULT_PLANET_RADIUS);
   m_atmosphereThickness = getParam<float>("atmosphereThickness", DEFAULT_ATMOSPHERE_THICKNESS);
+  
+  // Invalidate cached Barney scalar field if parameters changed
+  if (prevCloudData != m_cloudData || 
+      prevPlanetRadius != m_planetRadius || 
+      prevAtmosphereThickness != m_atmosphereThickness) {
+    cleanup();
+  }
 }
 
 void CloudSpatialField::finalize()
