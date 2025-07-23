@@ -26,7 +26,7 @@ SpatialField *SpatialField::createInstance(
     return new StructuredRegularField(s);
   else if (subtype == "planet")
     return new PlanetSpatialField(s);
-  else if (subtype == "cloud")
+  else if (subtype == "clouds")
     return new CloudSpatialField(s);
   else
     return (SpatialField *)new UnknownObject(ANARI_SPATIAL_FIELD, s);

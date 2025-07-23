@@ -168,7 +168,7 @@ namespace barney_device {
 
     mutable BNScalarField m_sf{nullptr};
 
-    static constexpr const char* VOLUME_SUBTYPE = "cloud";
+    static constexpr const char* VOLUME_SUBTYPE = "clouds";
     static constexpr const char* DEFAULT_ATTR_CLOUD_DATA = "cloudData";
     static constexpr const char* DEFAULT_ATTR_PLANET_RADIUS = "planetRadius";
     static constexpr const char* DEFAULT_ATTR_ATMOSPHERE_THICKNESS = "atmosphereThickness";
