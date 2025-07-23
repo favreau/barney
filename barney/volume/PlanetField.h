@@ -39,15 +39,14 @@ namespace BARNEY_NS {
       - "elevationMap" (BNTexture2D) : Elevation/height map in equirectangular projection
       - "diffuseMap" (BNTexture2D) : Surface color/albedo map in equirectangular projection
       - "normalMap" (BNTexture2D) : Surface normal map in equirectangular projection
-      - "sphereRadius" (float) : Radius of the base sphere (default: 0.5 for unit volume)
+      - "planetRadius" (float) : Radius of the base sphere (default: 0.5 for unit volume)
       - "elevationScale" (float) : Scale factor for elevation values (default: 0.1)
-      - "atmosphereThickness" (float) : Thickness of atmosphere layer (default: 0.2)
   */
   struct PlanetField : public ScalarField
   {
     /*! device data for this class */
     struct DD : public ScalarField::DD {
-      float sphereRadius;
+      float planetRadius;
       float elevationScale;
     };
 
@@ -84,7 +83,7 @@ namespace BARNEY_NS {
     std::vector<PLD> perLogical;
     
     // Planet parameters
-    float sphereRadius = 0.5f;
+    float planetRadius = 0.5f;
     float elevationScale = 0.1f;
   };
 
@@ -103,7 +102,7 @@ namespace BARNEY_NS {
       rtc::TextureObject diffuseTex{nullptr}; 
       rtc::TextureObject normalTex{nullptr};
       float elevationScale;
-      float sphereRadius;
+      float planetRadius;
     };
 
     void build() override {}
@@ -131,7 +130,7 @@ namespace BARNEY_NS {
     const float outterCoreRadius = innerCoreRadius + 0.220f;
     const float mantleRadius = outterCoreRadius + 0.285f;
 
-    const float surfaceElevation = sphereRadius + elevationScale * elevation;
+    const float surfaceElevation = planetRadius + elevationScale * elevation;
     if (dist < innerCoreRadius) {
       return 0.02f;
     }
@@ -141,11 +140,11 @@ namespace BARNEY_NS {
     else if (dist < mantleRadius) {
       return 0.06f;
     }
-    else if (dist < sphereRadius) {
+    else if (dist < planetRadius) {
       // Between core and surface
       return 0.8f;
     }
-    else if (dist >= sphereRadius && dist < surfaceElevation) {
+    else if (dist >= planetRadius && dist < surfaceElevation) {
       // Surface
       return 0.1f + 0.8f * elevation;
     }

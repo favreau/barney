@@ -135,10 +135,20 @@ namespace barney_device {
     box3 bounds() const override;
     bool isValid() const override;
 
-    float m_sphereRadius{0.5f};
-    float m_elevationScale{0.1f};
-    float m_atmosphereThickness{0.2f};
-    math::float3 m_sphereCenter{0.f};
+    mutable BNScalarField m_sf{nullptr};
+
+    static constexpr float DEFAULT_PLANET_RADIUS = 0.9f;
+    static constexpr float DEFAULT_ELEVATION_SCALE = 0.1f;
+    
+    static constexpr const char* VOLUME_SUBTYPE = "planet";
+    static constexpr const char* DEFAULT_ATTR_PLANET_RADIUS = "planetRadius";
+    static constexpr const char* DEFAULT_ATTR_ELEVATION_SCALE = "elevationScale";
+    static constexpr const char* DEFAULT_ATTR_ELEVATION_MAP = "elevationMap";
+    static constexpr const char* DEFAULT_ATTR_DIFFUSE_MAP = "diffuseMap";
+    static constexpr const char* DEFAULT_ATTR_NORMAL_MAP = "normalMap";
+
+    float m_planetRadius{DEFAULT_PLANET_RADIUS};
+    float m_elevationScale{DEFAULT_ELEVATION_SCALE};
 
     helium::IntrusivePtr<Array2D> m_elevationMap;
     helium::IntrusivePtr<Array2D> m_diffuseMap;
@@ -155,6 +165,13 @@ namespace barney_device {
 
     box3 bounds() const override;
     bool isValid() const override;
+
+    mutable BNScalarField m_sf{nullptr};
+
+    static constexpr const char* VOLUME_SUBTYPE = "cloud";
+    static constexpr const char* DEFAULT_ATTR_CLOUD_DATA = "cloudData";
+    static constexpr const char* DEFAULT_ATTR_PLANET_RADIUS = "planetRadius";
+    static constexpr const char* DEFAULT_ATTR_ATMOSPHERE_THICKNESS = "atmosphereThickness";
 
     static constexpr float DEFAULT_PLANET_RADIUS = 0.9f;
     static constexpr float DEFAULT_ATMOSPHERE_THICKNESS = 0.01f;

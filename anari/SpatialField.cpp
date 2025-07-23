@@ -420,14 +420,17 @@ PlanetSpatialField::PlanetSpatialField(BarneyGlobalState *s) : SpatialField(s) {
 void PlanetSpatialField::commitParameters()
 {
   Object::commitParameters();
-  m_elevationMap = getParamObject<helium::Array2D>("elevationMap");
-  m_diffuseMap = getParamObject<helium::Array2D>("diffuseMap");
-  m_normalMap = getParamObject<helium::Array2D>("normalMap");
+  m_elevationMap = getParamObject<helium::Array2D>(DEFAULT_ATTR_ELEVATION_MAP);
+  m_diffuseMap = getParamObject<helium::Array2D>(DEFAULT_ATTR_DIFFUSE_MAP);
+  m_normalMap = getParamObject<helium::Array2D>(DEFAULT_ATTR_NORMAL_MAP);
   
-  m_sphereRadius = getParam<float>("sphereRadius", 0.5f);
-  m_elevationScale = getParam<float>("elevationScale", 0.1f);
-  m_atmosphereThickness = getParam<float>("atmosphereThickness", 0.2f);
-  m_sphereCenter = getParam<helium::float3>("sphereCenter", helium::float3(0.f));
+  m_planetRadius = getParam<float>(DEFAULT_ATTR_PLANET_RADIUS, DEFAULT_PLANET_RADIUS);
+  m_elevationScale = getParam<float>(DEFAULT_ATTR_ELEVATION_SCALE, DEFAULT_ELEVATION_SCALE);
+
+  if (m_sf) {
+    bnSet1f(m_sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
+    bnSet1f(m_sf, DEFAULT_ATTR_ELEVATION_SCALE, m_elevationScale);
+  }
 }
 
 void PlanetSpatialField::finalize()
@@ -448,13 +451,11 @@ BNScalarField PlanetSpatialField::createBarneyScalarField() const
   int slot = deviceState()->slot;
   auto context = deviceState()->tether->context;
 
-  BNScalarField sf = bnScalarFieldCreate(context, slot, "planet");
+  m_sf = bnScalarFieldCreate(context, slot, VOLUME_SUBTYPE);
   
   // Set planet parameters
-  bnSet1f(sf, "sphereRadius", m_sphereRadius);
-  bnSet1f(sf, "elevationScale", m_elevationScale);
-  bnSet1f(sf, "atmosphereThickness", m_atmosphereThickness);
-  bnSet3fc(sf, "sphereCenter", m_sphereCenter);
+  bnSet1f(m_sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
+  bnSet1f(m_sf, DEFAULT_ATTR_ELEVATION_SCALE, m_elevationScale);
   
   // Set texture maps if provided
   if (m_elevationMap) {
@@ -462,7 +463,7 @@ BNScalarField PlanetSpatialField::createBarneyScalarField() const
         context, slot, BN_FLOAT32,
         m_elevationMap->size().x, m_elevationMap->size().y, 
         m_elevationMap->data());
-    bnSetObject(sf, "elevationMap", td);
+    bnSetObject(m_sf, DEFAULT_ATTR_ELEVATION_MAP, td);
     bnRelease(td);
   }
   
@@ -471,7 +472,7 @@ BNScalarField PlanetSpatialField::createBarneyScalarField() const
         context, slot, BN_FLOAT32_VEC3,
         m_diffuseMap->size().x, m_diffuseMap->size().y,
         m_diffuseMap->data());
-    bnSetObject(sf, "diffuseMap", td);
+    bnSetObject(m_sf, DEFAULT_ATTR_DIFFUSE_MAP, td);
     bnRelease(td);
   }
   
@@ -480,19 +481,18 @@ BNScalarField PlanetSpatialField::createBarneyScalarField() const
         context, slot, BN_FLOAT32_VEC4,
         m_normalMap->size().x, m_normalMap->size().y,
         m_normalMap->data());
-    bnSetObject(sf, "normalMap", td);
+    bnSetObject(m_sf, DEFAULT_ATTR_NORMAL_MAP, td);
     bnRelease(td);
   }
   
-  bnCommit(sf);
-  return sf;
+  bnCommit(m_sf);
+  return m_sf;
 }
 
 box3 PlanetSpatialField::bounds() const
 {
-  float totalRadius = m_sphereRadius + m_atmosphereThickness;
-  helium::float3 center = m_sphereCenter;
-  return box3(center - totalRadius, center + totalRadius);
+  const float totalRadius = m_planetRadius + m_elevationScale;
+  return box3(-math::float3(totalRadius), math::float3(totalRadius));
 }
 
 // CloudSpatialField //
@@ -503,21 +503,14 @@ void CloudSpatialField::commitParameters()
 {
   Object::commitParameters();
   
-  // Store previous values to detect changes
-  auto prevCloudData = m_cloudData;
-  float prevPlanetRadius = m_planetRadius;
-  float prevAtmosphereThickness = m_atmosphereThickness;
+  m_cloudData = getParamObject<helium::Array3D>(DEFAULT_ATTR_CLOUD_DATA);
   
-  m_cloudData = getParamObject<helium::Array3D>("cloudData");
-  
-  m_planetRadius = getParam<float>("planetRadius", DEFAULT_PLANET_RADIUS);
-  m_atmosphereThickness = getParam<float>("atmosphereThickness", DEFAULT_ATMOSPHERE_THICKNESS);
-  
-  // Invalidate cached Barney scalar field if parameters changed
-  if (prevCloudData != m_cloudData || 
-      prevPlanetRadius != m_planetRadius || 
-      prevAtmosphereThickness != m_atmosphereThickness) {
-    cleanup();
+  m_planetRadius = getParam<float>(DEFAULT_ATTR_PLANET_RADIUS, DEFAULT_PLANET_RADIUS);
+  m_atmosphereThickness = getParam<float>(DEFAULT_ATTR_ATMOSPHERE_THICKNESS, DEFAULT_ATMOSPHERE_THICKNESS);
+
+  if (m_sf) {
+    bnSet1f(m_sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
+    bnSet1f(m_sf, DEFAULT_ATTR_ATMOSPHERE_THICKNESS, m_atmosphereThickness);
   }
 }
 
@@ -539,11 +532,11 @@ BNScalarField CloudSpatialField::createBarneyScalarField() const
   int slot = deviceState()->slot;
   auto context = deviceState()->tether->context;
 
-  BNScalarField sf = bnScalarFieldCreate(context, slot, "cloud");
+  m_sf = bnScalarFieldCreate(context, slot, VOLUME_SUBTYPE);
   
   // Set cloud parameters
-  bnSet1f(sf, "planetRadius", m_planetRadius);
-  bnSet1f(sf, "atmosphereThickness", m_atmosphereThickness);
+  bnSet1f(m_sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
+  bnSet1f(m_sf, DEFAULT_ATTR_ATMOSPHERE_THICKNESS, m_atmosphereThickness);
   
   // Set cloud data texture if provided
   if (m_cloudData) {
@@ -551,17 +544,17 @@ BNScalarField CloudSpatialField::createBarneyScalarField() const
         context, slot, BN_FLOAT32,
         m_cloudData->size().x, m_cloudData->size().y, m_cloudData->size().z,
         m_cloudData->data());
-    bnSetObject(sf, "cloudData", td);
+    bnSetObject(m_sf, DEFAULT_ATTR_CLOUD_DATA, td);
     bnRelease(td);
   }
-  
-  bnCommit(sf);
-  return sf;
+
+  bnCommit(m_sf);
+  return m_sf;
 }
 
 box3 CloudSpatialField::bounds() const
 {
-  float totalRadius = m_planetRadius + m_atmosphereThickness;
+  const float totalRadius = m_planetRadius + m_atmosphereThickness;
   return box3(-math::float3(totalRadius), math::float3(totalRadius));
 }
 

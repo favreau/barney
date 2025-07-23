@@ -37,7 +37,7 @@ namespace BARNEY_NS {
     /*! Device-side data common to all ScalarFields that live on the device */
     struct DD {
       /*! world bounds, CLIPPED TO DOMAIN (if non-empty domain is present!) */
-      box3f                worldBounds;
+      box3f worldBounds;
     };
     DD getDD(Device *device) { return { worldBounds }; }
     
@@ -53,7 +53,7 @@ namespace BARNEY_NS {
 
     virtual void buildMCs(MCGrid &macroCells);
 
-    box3f     worldBounds;
+    box3f worldBounds;
     
     /*! a clipping box used to restrict whatever primitives the volume
         may be made up to down to a specific 3d box. e.g., if there's

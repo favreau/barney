@@ -82,8 +82,6 @@ namespace BARNEY_NS {
 
   void PlanetField::buildMCs(MCGrid &mcGrid) 
   {
-    // Create macro cell grid that covers the spherical volume
-    // The sphere is centered at origin with radius sphereRadius + atmosphereThickness
     float totalRadius = 1.f;
     vec3f boxMin = -vec3f(totalRadius);
     vec3f boxMax = vec3f(totalRadius);
@@ -128,7 +126,7 @@ namespace BARNEY_NS {
       dd.normalTex = sf->normalMap->getDD(device);
     
     // Set sphere parameters
-    dd.sphereRadius = sf->sphereRadius;
+    dd.planetRadius = sf->planetRadius;
     dd.elevationScale = sf->elevationScale;
     
     return dd;
@@ -147,8 +145,8 @@ namespace BARNEY_NS {
   bool PlanetField::set1f(const std::string &member,
                          const float &value) 
   {
-    if (member == "sphereRadius") {
-      sphereRadius = value;
+    if (member == "planetRadius") {
+      planetRadius = value;
       return true;
     }
     if (member == "elevationScale") {
@@ -196,15 +194,16 @@ namespace BARNEY_NS {
   // ==================================================================
   void PlanetField::commit() 
   {
-    worldBounds.lower = -vec3f(sphereRadius);
-    worldBounds.upper = vec3f(sphereRadius);
+    const float totalRadius = planetRadius + elevationScale;
+    worldBounds.lower = -vec3f(totalRadius);
+    worldBounds.upper = vec3f(totalRadius);
   }
 
   PlanetField::DD PlanetField::getDD(Device *device)
   {
     DD dd;
     dd.worldBounds = worldBounds;
-    dd.sphereRadius = sphereRadius;
+    dd.planetRadius = planetRadius;
     dd.elevationScale = elevationScale;
     return dd;
   }

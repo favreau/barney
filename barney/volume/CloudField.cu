@@ -179,7 +179,7 @@ namespace BARNEY_NS {
   // ==================================================================
   void CloudField::commit() 
   {
-    float totalRadius = planetRadius + atmosphereThickness;
+    const float totalRadius = planetRadius + atmosphereThickness;
     worldBounds.lower = -vec3f(totalRadius);
     worldBounds.upper = vec3f(totalRadius);
   }

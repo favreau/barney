@@ -52,7 +52,6 @@ namespace BARNEY_NS {
       
       // Extract Planet parameters from sampler
       const PlanetSampler::DD &planetSampler = self.volume.sfSampler;
-      float sphereRadius = planetSampler.sphereRadius;
       
       // Check ray-sphere intersection for outer atmosphere boundary
       vec3f oc = obj_org;
