@@ -424,8 +424,8 @@ void PlanetSpatialField::commitParameters()
   m_diffuseMap = getParamObject<helium::Array2D>(DEFAULT_ATTR_DIFFUSE_MAP);
   m_normalMap = getParamObject<helium::Array2D>(DEFAULT_ATTR_NORMAL_MAP);
   
-  m_planetRadius = getParam<float>(DEFAULT_ATTR_PLANET_RADIUS, DEFAULT_PLANET_RADIUS);
-  m_elevationScale = getParam<float>(DEFAULT_ATTR_ELEVATION_SCALE, DEFAULT_ELEVATION_SCALE);
+  m_planetRadius = std::clamp(getParam<float>(DEFAULT_ATTR_PLANET_RADIUS, DEFAULT_PLANET_RADIUS), 0.f, 1.f);
+  m_elevationScale = std::clamp(getParam<float>(DEFAULT_ATTR_ELEVATION_SCALE, DEFAULT_ELEVATION_SCALE), 0.f, 1.f);
 
   if (m_sf) {
     bnSet1f(m_sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
@@ -505,8 +505,8 @@ void CloudSpatialField::commitParameters()
   
   m_cloudData = getParamObject<helium::Array3D>(DEFAULT_ATTR_CLOUD_DATA);
   
-  m_planetRadius = getParam<float>(DEFAULT_ATTR_PLANET_RADIUS, DEFAULT_PLANET_RADIUS);
-  m_atmosphereThickness = getParam<float>(DEFAULT_ATTR_ATMOSPHERE_THICKNESS, DEFAULT_ATMOSPHERE_THICKNESS);
+  m_planetRadius = std::clamp(getParam<float>(DEFAULT_ATTR_PLANET_RADIUS, DEFAULT_PLANET_RADIUS), 0.f, 1.f);
+  m_atmosphereThickness = std::clamp(getParam<float>(DEFAULT_ATTR_ATMOSPHERE_THICKNESS, DEFAULT_ATMOSPHERE_THICKNESS), 0.f, 1.f);
 
   if (m_sf) {
     bnSet1f(m_sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
