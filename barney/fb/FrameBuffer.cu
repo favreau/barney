@@ -36,7 +36,7 @@ namespace BARNEY_NS {
     uint32_t r = _make_8bit(color.x);
     uint32_t g = _make_8bit(color.y);
     uint32_t b = _make_8bit(color.z);
-    uint32_t a = 0xff; //make_8bit(color.w);
+    uint32_t a = _make_8bit(color.w);
     uint32_t ret =
       (r <<  0) |
       (g <<  8) |
