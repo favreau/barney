@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #include "light/Light.h"
 #include "light/Directional.h"

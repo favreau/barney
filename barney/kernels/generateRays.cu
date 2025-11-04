@@ -1,6 +1,18 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
+// ======================================================================== //
+// Copyright 2023-2024 Ingo Wald                                            //
+//                                                                          //
+// Licensed under the Apache License, Version 2.0 (the "License");          //
+// you may not use this file except in compliance with the License.         //
+// You may obtain a copy of the License at                                  //
+//                                                                          //
+//     http://www.apache.org/licenses/LICENSE-2.0                           //
+//                                                                          //
+// Unless required by applicable law or agreed to in writing, software      //
+// distributed under the License is distributed on an "AS IS" BASIS,        //
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
+// See the License for the specific language governing permissions and      //
+// limitations under the License.                                           //
+// ======================================================================== //
 
 #ifdef __CUDACC__
 # define OWL_DISABLE_TBB
@@ -168,13 +180,12 @@ namespace BARNEY_NS {
         bgColor = v;
       }
       (vec4f&)ray.missColor = bgColor;
-      if (1 && ray.dbg()) printf("== spawn ray has bg tex %p bg color %f %f %f %f\n",
+      if (0 && ray.dbg()) printf("== spawn ray has bg tex %p bg color %f %f %f\n",
                                (void*)renderer.bgTexture,
                                bgColor.x,
                                bgColor.y,
-                               bgColor.z,
-                               bgColor.w);
-      state.throughput = 1.f;
+                               bgColor.z);
+      state.throughput = vec3f(1.f);
       int pos = rt.atomicAdd(d_count,1);
       
       rayQueue.rays[pos] = ray;

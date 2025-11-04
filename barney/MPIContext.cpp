@@ -1,6 +1,18 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
+// ======================================================================== //
+// Copyright 2023-2024 Ingo Wald                                            //
+//                                                                          //
+// Licensed under the Apache License, Version 2.0 (the "License");          //
+// you may not use this file except in compliance with the License.         //
+// You may obtain a copy of the License at                                  //
+//                                                                          //
+//     http://www.apache.org/licenses/LICENSE-2.0                           //
+//                                                                          //
+// Unless required by applicable law or agreed to in writing, software      //
+// distributed under the License is distributed on an "AS IS" BASIS,        //
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
+// See the License for the specific language governing permissions and      //
+// limitations under the License.                                           //
+// ======================================================================== //
 
 #include "barney/MPIContext.h"
 #include "barney/fb/DistFB.h"
@@ -24,23 +36,10 @@ namespace BARNEY_NS {
 
   size_t getHostNameHash();
 
-  int findLocalRank(barney_api::mpi::Comm &comm)
-  {
-    size_t myHash = getHostNameHash();
-    std::vector<size_t> allHashes(comm.size);
-    comm.allGather(allHashes.data(),
-                   &myHash,1,
-                   sizeof(size_t));
-    int count = 0;
-    for (int i=0;i<comm.rank;i++)
-      if (allHashes[i] == myHash)
-        ++count;
-    return count;
-  }
-
-  
   MPIContext::~MPIContext()
-  {}
+  {
+    PING;
+  }
   
   WorkerTopo::SP
   MPIContext::makeTopo(const barney_api::mpi::Comm &worldComm,
@@ -91,7 +90,11 @@ namespace BARNEY_NS {
     bool dbg = FromEnv::get()->logConfig;
     if (topo->isDataParallel() && userSuppliedGpuListWasEmpty && world.rank == 0) {
       std::cerr << "#bn.mpi: WARNING - barney is run in 'true' data parallel mode" << std::endl;
-      std::cerr << "#bn.mpi: but user did NOT provide an explicit list of GPU ID(s)." << std::endl;
+      std::cerr << "#bn.mpi: (i.e., across multiple nodes and/or GPUs, w/ different data)," << std::endl;
+      std::cerr << "#bn.mpi: but user did NOT provide an explicit list of GPU IDs," << std::endl;
+      std::cerr << "#bn.mpi: for barney to use. THIS IS A BAD IDEA (and will likely" << std::endl;
+      std::cerr << "#bn.mpi: soon be disallowed). This app using barney _should_" << std::endl;
+      std::cerr << "#bn.mpi: tell barney exactly what GPUs to use." << std::endl;
     }
     if (FromEnv::enabled("two-stage") || FromEnv::enabled("two_stage")) {
       std::cout << "ENABLING TwoStage!" << std::endl;
@@ -174,14 +177,9 @@ namespace BARNEY_NS {
       // std::vector<int> gpuIDs;
       bool userSuppliedGpuListWasEmpty = (gpuIDs == nullptr);
       int numDGs = dgIDs.size();
-      int localRankGPU = 0;
-      if (userSuppliedGpuListWasEmpty) {
-        std::cout << "#banari: starting up in data parallel one-gpu-per-rank mode" << std::endl;
-        numGPUs = 1;
-        localRankGPU = findLocalRank(world) % numGPUs;
-        gpuIDs = &localRankGPU;
+      if (numGPUs == -1) {
+        BARNEY_CUDA_CALL(GetDeviceCount(&numGPUs));
       }
-
       if (numGPUs < numDGs)
         throw std::runtime_error
           ("not enough CUDA GPUs for requested number of data groups!");
@@ -220,7 +218,6 @@ namespace BARNEY_NS {
       // std::vector<int> gpuIDs;
       bool userSuppliedGpuListWasEmpty = (gpuIDs == nullptr);
       int numDGs = dgIDs.size();
-      int localRankGPU = 0;
       if (numGPUs == -1) {
         BARNEY_CUDA_CALL(GetDeviceCount(&numGPUs));
       }
@@ -238,6 +235,7 @@ namespace BARNEY_NS {
         for (int j=0;j<gpusPerDG;j++) {
           int idx = lsIdx*gpusPerDG+j;
           int gpuID = gpuIDs?gpuIDs[idx]:idx;
+          PING; PRINT(gpuID);
           slot.gpuIDs.push_back(gpuID);
         }
       }

@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #pragma once
 
@@ -24,7 +23,6 @@ namespace barney_device {
     void finalize() override;
 
     BNModel makeCurrent();
-    void markFinalized() override;
 
   private:
     void buildBarneyModel();

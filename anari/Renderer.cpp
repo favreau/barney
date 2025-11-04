@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #include "Renderer.h"
 
@@ -29,7 +28,7 @@ void Renderer::commitParameters()
 
 void Renderer::finalize()
 {
-  bnSetVec(barneyRenderer, "bgColor", m_background);
+  bnSet4fc(barneyRenderer, "bgColor", m_background);
   bnSet1i(barneyRenderer, "crosshairs", (int)m_crosshairs);
   bnSet1i(barneyRenderer, "pathsPerPixel", (int)m_pixelSamples);
   bnSet1f(barneyRenderer, "ambientRadiance", m_ambientRadiance);

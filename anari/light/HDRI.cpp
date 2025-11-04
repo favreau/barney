@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #include "light/HDRI.h"
 
@@ -48,8 +47,8 @@ namespace barney_device {
     int slot = deviceState()->slot;
     auto context = deviceState()->tether->context;
     
-    bnSetVec(m_bnLight, "direction", m_direction);
-    bnSetVec(m_bnLight, "up",        m_up);
+    bnSet3fc(m_bnLight, "direction", m_direction);
+    bnSet3fc(m_bnLight, "up",        m_up);
     bnSet1f (m_bnLight, "scale",     m_scale);
 
     assert(m_radiance);

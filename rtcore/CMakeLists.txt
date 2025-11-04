@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
-
-
 set(CMAKE_CXX_VISIBILITY_PRESET  hidden)
 set(CMAKE_CUDA_VISIBILITY_PRESET hidden)
 
@@ -117,6 +113,7 @@ if (BARNEY_BACKEND_EMBREE)
 #  add_library(barney_rtc_embree OBJECT #STATIC
   add_library(barney_rtc_embree STATIC
     embree/Float16.cpp
+    embree/EmbreeBackend.cpp
     embree/Compute.cpp
     embree/Device.cpp
     embree/Buffer.cpp

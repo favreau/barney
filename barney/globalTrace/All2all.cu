@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2025 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #include "barney/MPIContext.h"
 #include "barney/globalTrace/All2all.h"

@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #include "Frame.h"
 #include "Device.h"
@@ -179,7 +178,7 @@ namespace barney_device {
     }
 
     auto model = m_world->makeCurrent();
-    
+
     if (m_lastFrameWasFirstFrame && m_channelTypes.depth != ANARI_UNKNOWN
         && !m_didMapChannel.depth)
       reportMessage(ANARI_SEVERITY_PERFORMANCE_WARNING,
@@ -253,7 +252,8 @@ namespace barney_device {
         throw std::runtime_error
           ("trying to map depth buffer, but depth buffer already mapped");
       m_channelBuffers.depth = new float[numPixels];
-      bnFrameBufferRead(m_bnFrameBuffer, BN_FB_DEPTH, m_channelBuffers.depth, BN_FLOAT);
+      bnFrameBufferRead(
+                        m_bnFrameBuffer, BN_FB_DEPTH, m_channelBuffers.depth, BN_FLOAT);
       m_didMapChannel.depth = true;
       *pixelType = ANARI_FLOAT32;
       return m_channelBuffers.depth;
@@ -262,7 +262,8 @@ namespace barney_device {
         throw std::runtime_error
           ("trying to map channel.primitiveId, but seems already mapped");
       m_channelBuffers.primID = new int[numPixels];
-      bnFrameBufferRead(m_bnFrameBuffer, BN_FB_PRIMID, m_channelBuffers.primID, BN_INT);
+      bnFrameBufferRead(
+                        m_bnFrameBuffer, BN_FB_PRIMID, m_channelBuffers.primID, BN_INT);
       m_didMapChannel.primID = true;
       *pixelType = ANARI_UINT32;
       return m_channelBuffers.primID;
@@ -271,7 +272,8 @@ namespace barney_device {
         throw std::runtime_error
           ("trying to map channel.objectId, but seems already mapped");
       m_channelBuffers.objID = new int[numPixels];
-      bnFrameBufferRead(m_bnFrameBuffer, BN_FB_OBJID, m_channelBuffers.objID, BN_INT);
+      bnFrameBufferRead(
+                        m_bnFrameBuffer, BN_FB_OBJID, m_channelBuffers.objID, BN_INT);
       m_didMapChannel.objID = true;
       *pixelType = ANARI_UINT32;
       return m_channelBuffers.objID;
@@ -280,7 +282,8 @@ namespace barney_device {
         throw std::runtime_error
           ("trying to map channel.instanceId, but seems already mapped");
       m_channelBuffers.instID = new int[numPixels];
-      bnFrameBufferRead(m_bnFrameBuffer, BN_FB_INSTID, m_channelBuffers.instID, BN_INT);
+      bnFrameBufferRead(
+                        m_bnFrameBuffer, BN_FB_INSTID, m_channelBuffers.instID, BN_INT);
       m_didMapChannel.instID = true;
       *pixelType = ANARI_UINT32;
       return m_channelBuffers.instID;
@@ -305,7 +308,8 @@ namespace barney_device {
         throw std::runtime_error(
                                  "trying to map depth buffer, but depth buffer already mapped");
       cudaMalloc((void **)&m_channelBuffers.depth, numPixels * sizeof(float));
-      bnFrameBufferRead(m_bnFrameBuffer, BN_FB_DEPTH, m_channelBuffers.depth, BN_FLOAT);
+      bnFrameBufferRead(
+                        m_bnFrameBuffer, BN_FB_DEPTH, m_channelBuffers.depth, BN_FLOAT);
       *pixelType = ANARI_FLOAT32;
       return m_channelBuffers.depth;
     } else if (channel == "channel.primitiveIdCUDA"
@@ -314,7 +318,8 @@ namespace barney_device {
         throw std::runtime_error
           ("trying to map primitiveId buffer, but buffer already mapped");
       cudaMalloc((void **)&m_channelBuffers.primID, numPixels * sizeof(uint32_t));
-      bnFrameBufferRead(m_bnFrameBuffer, BN_FB_PRIMID, m_channelBuffers.primID, BN_INT);
+      bnFrameBufferRead(
+                        m_bnFrameBuffer, BN_FB_PRIMID, m_channelBuffers.primID, BN_INT);
       *pixelType = ANARI_UINT32;
       return m_channelBuffers.primID;
     } else if (channel == "channel.objectIdCUDA"
@@ -323,7 +328,8 @@ namespace barney_device {
         throw std::runtime_error
           ("trying to map objectId buffer, but buffer already mapped");
       cudaMalloc((void **)&m_channelBuffers.objID, numPixels * sizeof(uint32_t));
-      bnFrameBufferRead(m_bnFrameBuffer, BN_FB_OBJID, m_channelBuffers.objID, BN_INT);
+      bnFrameBufferRead(
+                        m_bnFrameBuffer, BN_FB_OBJID, m_channelBuffers.objID, BN_INT);
       *pixelType = ANARI_UINT32;
       return m_channelBuffers.objID;
     } else if (channel == "channel.instanceIdCUDA"
@@ -332,7 +338,8 @@ namespace barney_device {
         throw std::runtime_error
           ("trying to map instanceId buffer, but buffer already mapped");
       cudaMalloc((void **)&m_channelBuffers.instID, numPixels * sizeof(uint32_t));
-      bnFrameBufferRead(m_bnFrameBuffer, BN_FB_INSTID, m_channelBuffers.instID, BN_INT);
+      bnFrameBufferRead(
+                        m_bnFrameBuffer, BN_FB_INSTID, m_channelBuffers.instID, BN_INT);
       *pixelType = ANARI_UINT32;
       return m_channelBuffers.instID;
 #endif

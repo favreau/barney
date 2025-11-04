@@ -1,6 +1,5 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
-
+## Copyright 2023 Ingo Wald
+## SPDX-License-Identifier: Apache-2.0
 
 option(BARNEY_BUILD_ANARI "Build ANARI device" ON)
 set(CMAKE_CXX_STANDARD 17)
@@ -84,6 +83,7 @@ target_link_libraries(anari_library_barney PRIVATE
   $<BUILD_INTERFACE:banari-config>
   barney_static
   anari::helium
+  anari::anari
 )
 
 if (BARNEY_MPI)
@@ -92,6 +92,7 @@ if (BARNEY_MPI)
     $<BUILD_INTERFACE:banari-config>
     barney_mpi_static
     anari::helium
+    anari::anari
   )
 endif()
 

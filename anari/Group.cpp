@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #include "Group.h"
 #include <iostream>
@@ -60,17 +59,14 @@ namespace barney_device {
                     });
     }
 
-    for (auto s : surfaces) {
-      auto bg = s->getBarneyGeom();
-      barneyGeometries.push_back(bg);
-    }
+    for (auto s : surfaces)
+      barneyGeometries.push_back(s->getBarneyGeom());
 
     // Volumes //
 
     if (m_volumeData) {
-      std::for_each(m_volumeData->handlesBegin(),
-                    m_volumeData->handlesEnd(),
-                    [&](auto *o) {
+      std::for_each(
+                    m_volumeData->handlesBegin(), m_volumeData->handlesEnd(), [&](auto *o) {
                       auto *v = (Volume *)o;
                       if (v && v->isValid())
                         volumes.push_back(v);
@@ -82,16 +78,15 @@ namespace barney_device {
                       }
                     });
     }
-    
+
     for (auto v : volumes)
       barneyVolumes.push_back(v->getBarneyVolume());
 
     // Lights //
 
     if (m_lightData) {
-      std::for_each(m_lightData->handlesBegin(),
-                    m_lightData->handlesEnd(),
-                    [&](auto *o) {
+      std::for_each(
+                    m_lightData->handlesBegin(), m_lightData->handlesEnd(), [&](auto *o) {
                       auto *l = (Light *)o;
                       if (l && l->isValid())
                         lights.push_back(l);
@@ -105,7 +100,7 @@ namespace barney_device {
     }
 
     for (auto l : lights) {
-      if (l && l->isValid())
+      if (l->isValid())
         barneyLights.push_back(l->getBarneyLight());
     }
 

@@ -1,6 +1,18 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
+// ======================================================================== //
+// Copyright 2023-2025 Ingo Wald                                            //
+//                                                                          //
+// Licensed under the Apache License, Version 2.0 (the "License");          //
+// you may not use this file except in compliance with the License.         //
+// You may obtain a copy of the License at                                  //
+//                                                                          //
+//     http://www.apache.org/licenses/LICENSE-2.0                           //
+//                                                                          //
+// Unless required by applicable law or agreed to in writing, software      //
+// distributed under the License is distributed on an "AS IS" BASIS,        //
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
+// See the License for the specific language governing permissions and      //
+// limitations under the License.                                           //
+// ======================================================================== //
 
 #include "barney/fb/FrameBuffer.h"
 #include "barney/fb/TiledFB.h"
@@ -64,11 +76,11 @@ namespace BARNEY_NS {
         u[i] = random();
         v[i] = random();
         float lightArea = light.area;
-// #ifndef NDEBUG
-//         if (lightArea < 0.f)
-//           printf("INVALID NEGATIVE LIGHT AREA on light %i/%i : %f\n",
-//                  lID[i],world.numQuadLights,lightArea);
-// #endif
+#ifndef NDEBUG
+        if (lightArea < 0.f)
+          printf("INVALID NEGATIVE LIGHT AREA on light %i/%i : %f\n",
+                 lID[i],world.numQuadLights,lightArea);
+#endif
         vec3f LN = light.normal;
         vec3f LP = light.corner + u[i]*light.edge0 + v[i]*light.edge1;
         vec3f lightDir = LP - P;
@@ -77,35 +89,34 @@ namespace BARNEY_NS {
       
         lightDir *= 1.f/lightDist;
 
-        // float weight = dot(lightDir,N);
-        float weight = (N==vec3f(0.f)) ? 1.f : dot(lightDir,N);
+        float weight = dot(lightDir,N);
         if (weight <= 1e-3f) continue;
         weight *= -dot(lightDir,LN);
         if (weight <= 1e-3f) continue;
-// #ifndef NDEBUG
-//         if (lightArea == 0.f || reduce_max(light.emission) == 0)
-//           printf("invalid light! %f : %f %f %f\n",
-//                  lightArea,
-//                  light.emission.x,
-//                  light.emission.y,
-//                  light.emission.z);
-// #endif
+#ifndef NDEBUG
+        if (lightArea == 0.f || reduce_max(light.emission) == 0)
+          printf("invalid light! %f : %f %f %f\n",
+                 lightArea,
+                 light.emission.x,
+                 light.emission.y,
+                 light.emission.z);
+#endif
         weight *= (1.f/(lightDist*lightDist)) * lightArea * reduce_max(light.emission);
-// #ifndef NDEBUG
-//         if (isnan(sumWeights) || weight < 0.f)
-//           printf("area lights: weight[%i:%i] is nan or negative: dist  %f area %f emission %f %f %f\n",
-//                  i,lID[i],lightDist,lightArea,
-//                  light.emission.x,
-//                  light.emission.y,
-//                  light.emission.z);
-// #endif
+#ifndef NDEBUG
+        if (isnan(sumWeights) || weight < 0.f)
+          printf("area lights: weight[%i:%i] is nan or negative: dist  %f area %f emission %f %f %f\n",
+                 i,lID[i],lightDist,lightArea,
+                 light.emission.x,
+                 light.emission.y,
+                 light.emission.z);
+#endif
         sumWeights += weight;
         weights[i] = weight;
       }
-// #ifndef NDEBUG
-//       if (isnan(sumWeights))
-//         printf("area lights: sumWeights is nan!\n");
-// #endif
+#ifndef NDEBUG
+      if (isnan(sumWeights))
+        printf("area lights: sumWeights is nan!\n");
+#endif
       if (sumWeights == 0.f) return false;
       float r = random()*sumWeights;
       int i=0;
@@ -126,11 +137,11 @@ namespace BARNEY_NS {
       ls.pdf
         = weights[i]/sumWeights
         * (float(RESERVOIR_SIZE)/float(world.numQuadLights));
-// #ifndef NDEBUG
-//       if (ls.pdf <= 0.f)
-//         printf("invalid area light PDF %f from i %i weight %f sum %f\n",
-//                ls.pdf,i,weights[i],sumWeights);
-// #endif
+#ifndef NDEBUG
+      if (ls.pdf <= 0.f)
+        printf("invalid area light PDF %f from i %i weight %f sum %f\n",
+               ls.pdf,i,weights[i],sumWeights);
+#endif
       return true;
     }
 
@@ -160,7 +171,7 @@ namespace BARNEY_NS {
           * light.radiance;
         
         vec3f lightDir = -light.direction;
-        float weight = (N==vec3f(0.f)) ? 1.f : dot(lightDir,N);
+        float weight = dot(lightDir,N);
         if (dbg) printf("light #%i, dir %f %f %f weight %f\n",lID[i],lightDir.x,lightDir.y,lightDir.z,weight);
         if (weight <= 1e-3f) continue;
         weight *= reduce_max(light_radiance);
@@ -231,8 +242,7 @@ namespace BARNEY_NS {
           * (1.f/falloff);
         
         // light_radiance *= (1.f/dist);
-        float weight = (N==vec3f(0.f)) ? 1.f : dot(lightDirection,N);
-        // float weight = dot(lightDirection,N);
+        float weight = dot(lightDirection,N);
         if (weight <= 1e-3f) continue;
         weight *= reduce_max(light_radiance);
         if (weight <= 1e-3f) continue;
@@ -291,6 +301,8 @@ namespace BARNEY_NS {
           ls.radiance  = FOUR_PI*renderer.ambientRadiance;
           ls.pdf       = ONE_OVER_FOUR_PI;
         }
+        if (dbg) printf("ambientrad %f\n",
+                        renderer.ambientRadiance);
       }
       return true;
     }
@@ -562,6 +574,13 @@ namespace BARNEY_NS {
           // PRIMARY ray that didn't hit anything -> background
           // ----------------------------------------------------------------
           fragment = primaryRayMissColor(world,renderer,ray);
+
+          if (dbg)
+            printf("miss primary %f %f %f -> %f %f %f\n",
+                   ray.missColor.x,
+                   ray.missColor.y,
+                   ray.missColor.z,
+                   fragment.x,fragment.y,fragment.z);
         } else {
           // ----------------------------------------------------------------
           // SECONDARY ray that didn't hit anything -> env-light
@@ -856,7 +875,27 @@ namespace BARNEY_NS {
     }
 #endif // device code  
 
+    //     struct PathTraceKernel {
+    // #ifdef RTC_DEVICE_CODE
+    //       inline __rtc_device
+    //       void run(const rtc::ComputeInterface &rt);
+    // #endif
+      
+    //       World::DD world;
+    //       Renderer::DD renderer;
+    //       AccumTile *accumTiles;
+    //       AuxTiles   auxTiles;
+    //       int accumID;
+    //       SingleQueue readQueue;
+    //       int numRays;
+    //       SingleQueue writeQueue;
+    //       int *d_nextWritePos;
+    //       int generation;
+    //     };
+
 #if RTC_DEVICE_CODE
+    // inline __rtc_device
+    // void PathTraceKernel::run
     __rtc_global void _shadeRays(const rtc::ComputeInterface &rt,
                                  World::DD world,
                                  Renderer::DD renderer,
@@ -901,7 +940,6 @@ namespace BARNEY_NS {
         = ray.hadHit()
         ? ray.getN()
         : vec3f(0.f);
-
       // if (incomingN == vec3f(0.f))
       //   incomingN = vec3f(1.f,0.f,0.f);
       // what we'll add into the frame buffer
@@ -970,12 +1008,11 @@ namespace BARNEY_NS {
       // clamping ...
       float clampMax = 10.f*(1+accumID);
       fragment = min(fragment,vec3f(clampMax));
-      
+
       if (accumID == 0 && generation == 0) {
-        // first gen of first frame HAS to plain-write a value so later frames can
         valueToAccumInto = vec4f(fragment.x,fragment.y,
                                  fragment.z,alpha);
-      
+
         // write aux buffers (depth, normal, hitIDs
         accumTiles[tileID].normal[tileOfs] = incomingN;
         if (auxTiles.depth) 
@@ -988,23 +1025,14 @@ namespace BARNEY_NS {
           auxTiles.instID[tileID].ui[tileOfs] = readQueue.hitIDs[tid].instID;
         
       } else {
-#if 1
-        if (generation == 0) {
-          if (alpha > 0.f) {
-            rt.atomicAdd(&valueToAccumInto.w,alpha);
-          }
-          if (auxTiles.depth && incomingZ < auxTiles.depth[tileID] . f[tileOfs]) {
-            auxTiles.depth[tileID] . f[tileOfs] = incomingZ;
-          }
-        }
-#else
-        if (generation == 0 && alpha > 0.f) 
-          rt.atomicAdd(&valueToAccumInto.w,alpha);
-#endif
-        // we're either an accumulated frame, or a non-primary bounce
+        // we're either an accumluated frame, or a non-primary bounce
         // of the first frame; either way we'll accumulate color and
         // ignore anything else.
+        if (generation == 0 && alpha > 0.f) 
+          rt.atomicAdd(&valueToAccumInto.w,alpha);
 
+        // printf("frag %f %f %f:%f\n",
+        //        fragment.x,fragment.y,fragment.z,alpha);
         if (fragment.x > 0.f)
           rt.atomicAdd(&valueToAccumInto.x,fragment.x);
         if (fragment.y > 0.f)
@@ -1015,7 +1043,7 @@ namespace BARNEY_NS {
     }
 #endif
   }  
-  
+
   using namespace render;
   
   void Context::shadeRaysLocally(Renderer *renderer,
@@ -1037,9 +1065,22 @@ namespace BARNEY_NS {
         int bs = 128;
         int nb = divRoundUp(numRays,bs);
         World::DD devWorld
-          = world->getDD(device);
+          = world->getDD(device// ,rngSeed
+                         );
         Renderer::DD devRenderer
           = renderer->getDD(device);
+
+        // render::PathTraceKernel args = {
+        //   devWorld,devRenderer,
+        //   devFB->accumTiles,
+        //   devFB->auxTiles,
+        //   (int)fb->accumID,
+        //   rayQueue->traceAndShadeReadQueue,
+        //   numRays,
+        //   rayQueue->receiveAndShadeWriteQueue,
+        //   rayQueue->_d_nextWritePos,
+        //   generation,
+        // };
         if (FromEnv::get()->logQueues) {
           std::stringstream ss;
           ss << "#bn" << myRank() << ": ## ray queue kernel SHADE " << std::endl
@@ -1050,6 +1091,8 @@ namespace BARNEY_NS {
           std::cout << ss.str();
         }
         
+          
+        // device->shadeRays->launch(nb,bs,&args);
         __rtc_launch(//device
                      device->rtc,
                      //kernel

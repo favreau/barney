@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2021 The Khronos Group
 // SPDX-License-Identifier: Apache-2.0
-
 
 #include <errno.h>
 #include <stdint.h>

@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023-2024 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #pragma once
 
@@ -130,7 +129,6 @@ struct BarneyDevice : public helium::BaseDevice
       "default", the default value for comm is MPI_COMM_WORLD, if it
       is created with subtype "local" it will default to 0 */
   MPI_Comm comm = MPI_COMM_WORLD;
-  bool     commNeedsFree = false;
 #endif
   bool hasBeenCommitted = false;
   BarneyDevice *tetherDevice = 0;

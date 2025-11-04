@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #pragma once
 
@@ -30,17 +29,12 @@ namespace barney_device {
 
   namespace math = anari::math;
 
-  /*! banari-only helper function to set a anari vector type */
-  inline void bnSetVec(BNObject o, const char *n, math::int3 v)
+  inline void bnSet3ic(BNObject o, const char *n, math::int3 v)
   { bnSet3i(o,n,v.x,v.y,v.z); }
-  
-  /*! banari-only helper function to set a anari vector type */
-  inline void bnSetVec(BNObject o, const char *n, math::float3 v)
+  inline void bnSet3fc(BNObject o, const char *n, math::float3 v)
   { bnSet3f(o,n,v.x,v.y,v.z); }
-
-  /*! banari-only helper function to set a anari vector type */
-  inline void bnSetVec(BNObject o, const char *n, math::float4 v)
-  { bnSet4f(o,n,v.x,v.y,v.z,v.w); }
+  inline void bnSet4fc(BNObject o, const char *n, math::float4 v)
+  { bnSet4f(o,n,v.x,v.y,v.z,v.z); }
 
   
   struct box1

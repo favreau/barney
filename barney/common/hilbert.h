@@ -1,7 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
-
+/*! reference code from Nate Morrical's "Quick Clusters" paper */
 
 /* C header file for Hilbert curve functions */ 
 #if !defined(_hilbert_h_) 

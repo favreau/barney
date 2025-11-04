@@ -1,6 +1,18 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
+// ======================================================================== //
+// Copyright 2023-2024 Ingo Wald                                            //
+//                                                                          //
+// Licensed under the Apache License, Version 2.0 (the "License");          //
+// you may not use this file except in compliance with the License.         //
+// You may obtain a copy of the License at                                  //
+//                                                                          //
+//     http://www.apache.org/licenses/LICENSE-2.0                           //
+//                                                                          //
+// Unless required by applicable law or agreed to in writing, software      //
+// distributed under the License is distributed on an "AS IS" BASIS,        //
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
+// See the License for the specific language governing permissions and      //
+// limitations under the License.                                           //
+// ======================================================================== //
 
 #pragma once
 
@@ -48,18 +60,15 @@ namespace BARNEY_NS {
     inline __rtc_device HitAttributes::HitAttributes()
     {
       color
-        // = vec4f(NAN,NAN,NAN,NAN);
-        = vec4f(0.f,0.f,0.f,1.f);
+        = vec4f(NAN,NAN,NAN,NAN);
       for (int i=0;i<numAttributes;i++)
         attribute[i]
-          // = vec4f(NAN,NAN,NAN,NAN);
-          = vec4f(0.f,0.f,0.f,1.f);
+            = vec4f(NAN,NAN,NAN,NAN);
     }
 
     inline __rtc_device
     vec4f HitAttributes::get(Which whichOne, bool dbg) const
     {
-      if (dbg) printf("HitAttributes::get(%i)\n",(int)whichOne);
       if (whichOne == ATTRIBUTE_0)
         return attribute[0];
       if (whichOne == ATTRIBUTE_1)
@@ -70,13 +79,6 @@ namespace BARNEY_NS {
         return attribute[3];
       if (whichOne == COLOR)
         return color;
-      if (whichOne == WORLD_POSITION) {
-        if (dbg) printf("worldpos \n");
-        return vec4f(worldPosition.x,worldPosition.y,worldPosition.z,1.f);
-        }
-      if (whichOne == OBJECT_POSITION)
-        return vec4f(objectPosition.x,objectPosition.y,objectPosition.z,1.f);
-      if (dbg) printf("un-implemented hit attribute %i\n",(int)whichOne);
       return vec4f(0.f,0.f,0.f,1.f);
     }
 

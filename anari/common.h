@@ -1,20 +1,14 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #pragma once
 
-#include "barney_math.h"
-// anari
-#include "anari/frontend/type_utility.h"
-// helium
-#include "helium/array/Array.h"
-// std
-#include <iostream>
-#include <cassert>
-#include <limits>
 #include <sstream>
 #include <vector>
+#include "helium/array/Array.h"
+#include "barney_math.h"
+#include <iostream>
+#include <cassert>
 
 #define BANARI_TRACK_LEAKS(a) /* nothing */
 
@@ -66,134 +60,168 @@ inline BNTextureAddressMode toBarneyAddressMode(std::string str) {
   return BN_TEXTURE_CLAMP;
 }
 
-template <int TYPE>
-inline void convert_to_float4(const void *_in, std::vector<math::float4> &out)
+inline void convert_fixed8_to_float4(const void *in, math::float4 *out, size_t size)
 {
-  using T = typename anari::ANARITypeProperties<TYPE>::base_type;
-  const auto components = anari::ANARITypeProperties<TYPE>::components;
-  const T *in = (const T *)_in;
-  for (size_t i = 0; i < out.size(); ++i)
-    anari::ANARITypeProperties<TYPE>::toFloat4(&out[i].x, &in[i * components]);
+  for (size_t i = 0; i < size; ++i) {
+    out[i].x = ((const unsigned char *)in)[i] / 255.f;
+    out[i].y = 0.f;
+    out[i].z = 0.f;
+    out[i].w = 1.f;
+  }
+}
+
+inline void convert_fixed8x2_to_float4(const void *in, math::float4 *out, size_t size)
+{
+  for (size_t i = 0; i < size; ++i) {
+    out[i].x = ((const math::byte2 *)in)[i].x / 255.f;
+    out[i].y = ((const math::byte2 *)in)[i].y / 255.f;
+    out[i].z = 0.f;
+    out[i].w = 1.f;
+  }
+}
+
+inline void convert_fixed8x3_to_float4(const void *in, math::float4 *out, size_t size)
+{
+  for (size_t i = 0; i < size; ++i) {
+    out[i].x = ((const math::byte3 *)in)[i].x / 255.f;
+    out[i].y = ((const math::byte3 *)in)[i].y / 255.f;
+    out[i].z = ((const math::byte3 *)in)[i].z / 255.f;
+    out[i].w = 1.f;
+  }
+}
+
+inline void convert_fixed8x4_to_float4(const void *in, math::float4 *out, size_t size)
+{
+  for (size_t i = 0; i < size; ++i) {
+    out[i].x = ((const math::byte4 *)in)[i].x / 255.f;
+    out[i].y = ((const math::byte4 *)in)[i].y / 255.f;
+    out[i].z = ((const math::byte4 *)in)[i].z / 255.f;
+    out[i].w = ((const math::byte4 *)in)[i].w / 255.f;
+  }
+}
+
+inline void convert_fixed16_to_float4(const void *in, math::float4 *out, size_t size)
+{
+  for (size_t i = 0; i < size; ++i) {
+    out[i].x = ((const unsigned short *)in)[i] / 65535.f;
+    out[i].y = 0.f;
+    out[i].z = 0.f;
+    out[i].w = 1.f;
+  }
+}
+
+inline void convert_fixed16x2_to_float4(const void *in, math::float4 *out, size_t size)
+{
+  for (size_t i = 0; i < size; ++i) {
+    out[i].x = ((const math::ushort2 *)in)[i].x / 65535.f;
+    out[i].y = ((const math::ushort2 *)in)[i].y / 65535.f;
+    out[i].z = 0.f;
+    out[i].w = 1.f;
+  }
+}
+
+inline void convert_fixed16x3_to_float4(const void *in, math::float4 *out, size_t size)
+{
+  for (size_t i = 0; i < size; ++i) {
+    out[i].x = ((const math::ushort3 *)in)[i].x / 65535.f;
+    out[i].y = ((const math::ushort3 *)in)[i].y / 65535.f;
+    out[i].z = ((const math::ushort3 *)in)[i].z / 65535.f;
+    out[i].w = 1.f;
+  }
+}
+
+inline void convert_fixed16x4_to_float4(const void *in, math::float4 *out, size_t size)
+{
+  for (size_t i = 0; i < size; ++i) {
+    out[i].x = ((const math::ushort4 *)in)[i].x / 65535.f;
+    out[i].y = ((const math::ushort4 *)in)[i].y / 65535.f;
+    out[i].z = ((const math::ushort4 *)in)[i].z / 65535.f;
+    out[i].w = ((const math::ushort4 *)in)[i].w / 65535.f;
+  }
+}
+
+inline void convert_float1_to_float4(const float *in, math::float4 *out, size_t size)
+{
+  for (size_t i = 0; i < size; ++i) {
+    out[i].x = in[i];
+    out[i].y = 0.f;
+    out[i].z = 0.f;
+    out[i].w = 1.f;
+  }
+}
+
+inline void convert_float2_to_float4(const math::float2 *in, math::float4 *out, size_t size)
+{
+  for (size_t i = 0; i < size; ++i) {
+    out[i].x = in[i].x;
+    out[i].y = in[i].y;
+    out[i].z = 0.f;
+    out[i].w = 1.f;
+  }
+}
+
+inline void convert_float3_to_float4(const math::float3 *in, math::float4 *out, size_t size)
+{
+  for (size_t i = 0; i < size; ++i) {
+    out[i].x = in[i].x;
+    out[i].y = in[i].y;
+    out[i].z = in[i].z;
+    out[i].w = 1.f;
+  }
 }
 
 inline bool convert_to_float4(
     const helium::IntrusivePtr<helium::Array> &input, std::vector<math::float4> &data)
 {
   data.resize(input->totalSize());
-  switch(input->elementType()) {
-    case ANARI_FIXED8:
-      convert_to_float4<ANARI_FIXED8>(input->data(), data);
-      return true;
-    case ANARI_FIXED8_VEC2:
-      convert_to_float4<ANARI_FIXED8_VEC2>(input->data(), data);
-      return true;
-    case ANARI_FIXED8_VEC3:
-      convert_to_float4<ANARI_FIXED8_VEC3>(input->data(), data);
-      return true;
-    case ANARI_FIXED8_VEC4:
-      convert_to_float4<ANARI_FIXED8_VEC4>(input->data(), data);
-      return true;
-    case ANARI_FIXED16:
-      convert_to_float4<ANARI_FIXED16>(input->data(), data);
-      return true;
-    case ANARI_FIXED16_VEC2:
-      convert_to_float4<ANARI_FIXED16_VEC2>(input->data(), data);
-      return true;
-    case ANARI_FIXED16_VEC3:
-      convert_to_float4<ANARI_FIXED16_VEC3>(input->data(), data);
-      return true;
-    case ANARI_FIXED16_VEC4:
-      convert_to_float4<ANARI_FIXED16_VEC4>(input->data(), data);
-      return true;
-    case ANARI_FIXED32:
-      convert_to_float4<ANARI_FIXED32>(input->data(), data);
-      return true;
-    case ANARI_FIXED32_VEC2:
-      convert_to_float4<ANARI_FIXED32_VEC2>(input->data(), data);
-      return true;
-    case ANARI_FIXED32_VEC3:
-      convert_to_float4<ANARI_FIXED32_VEC3>(input->data(), data);
-      return true;
-    case ANARI_FIXED32_VEC4:
-      convert_to_float4<ANARI_FIXED32_VEC4>(input->data(), data);
-      return true;
-    case ANARI_UFIXED8_R_SRGB:
-      convert_to_float4<ANARI_UFIXED8_R_SRGB>(input->data(), data);
-      return true;
-    case ANARI_UFIXED8_RA_SRGB:
-      convert_to_float4<ANARI_UFIXED8_RA_SRGB>(input->data(), data);
-      return true;
-    case ANARI_UFIXED8_RGB_SRGB:
-      convert_to_float4<ANARI_UFIXED8_RGB_SRGB>(input->data(), data);
-      return true;
-    case ANARI_UFIXED8_RGBA_SRGB:
-      convert_to_float4<ANARI_UFIXED8_RGBA_SRGB>(input->data(), data);
-      return true;
-    case ANARI_UFIXED8:
-      convert_to_float4<ANARI_UFIXED8>(input->data(), data);
-      return true;
-    case ANARI_UFIXED8_VEC2:
-      convert_to_float4<ANARI_UFIXED8_VEC2>(input->data(), data);
-      return true;
-    case ANARI_UFIXED8_VEC3:
-      convert_to_float4<ANARI_UFIXED8_VEC3>(input->data(), data);
-      return true;
-    case ANARI_UFIXED8_VEC4:
-      convert_to_float4<ANARI_UFIXED8_VEC4>(input->data(), data);
-      return true;
-    case ANARI_UFIXED16:
-      convert_to_float4<ANARI_UFIXED16>(input->data(), data);
-      return true;
-    case ANARI_UFIXED16_VEC2:
-      convert_to_float4<ANARI_UFIXED16_VEC2>(input->data(), data);
-      return true;
-    case ANARI_UFIXED16_VEC3:
-      convert_to_float4<ANARI_UFIXED16_VEC3>(input->data(), data);
-      return true;
-    case ANARI_UFIXED16_VEC4:
-      convert_to_float4<ANARI_UFIXED16_VEC4>(input->data(), data);
-      return true;
-    case ANARI_UFIXED32:
-      convert_to_float4<ANARI_UFIXED32>(input->data(), data);
-      return true;
-    case ANARI_UFIXED32_VEC2:
-      convert_to_float4<ANARI_UFIXED32_VEC2>(input->data(), data);
-      return true;
-    case ANARI_UFIXED32_VEC3:
-      convert_to_float4<ANARI_UFIXED32_VEC3>(input->data(), data);
-      return true;
-    case ANARI_UFIXED32_VEC4:
-      convert_to_float4<ANARI_UFIXED32_VEC4>(input->data(), data);
-      return true;
-    case ANARI_FLOAT32:
-      convert_to_float4<ANARI_FLOAT32>(input->data(), data);
-      return true;
-    case ANARI_FLOAT32_VEC2:
-      convert_to_float4<ANARI_FLOAT32_VEC2>(input->data(), data);
-      return true;
-    case ANARI_FLOAT32_VEC3:
-      convert_to_float4<ANARI_FLOAT32_VEC3>(input->data(), data);
-      return true;
-    case ANARI_FLOAT32_VEC4:
-      convert_to_float4<ANARI_FLOAT32_VEC4>(input->data(), data);
-      return true;
-    case ANARI_FLOAT64:
-      convert_to_float4<ANARI_FLOAT64>(input->data(), data);
-      return true;
-    case ANARI_FLOAT64_VEC2:
-      convert_to_float4<ANARI_FLOAT64_VEC2>(input->data(), data);
-      return true;
-    case ANARI_FLOAT64_VEC3:
-      convert_to_float4<ANARI_FLOAT64_VEC3>(input->data(), data);
-      return true;
-    case ANARI_FLOAT64_VEC4:
-      convert_to_float4<ANARI_FLOAT64_VEC4>(input->data(), data);
-      return true;
-    default:
-      break;
+  if (input->elementType() == ANARI_UFIXED8) {
+    convert_fixed8_to_float4(input->data(), data.data(), data.size());
   }
-
-  return false;
+  else if (input->elementType() == ANARI_UFIXED8_VEC2) {
+    convert_fixed8x2_to_float4(input->data(), data.data(), data.size());
+  }
+  else if (input->elementType() == ANARI_UFIXED8_VEC3) {
+    convert_fixed8x3_to_float4(input->data(), data.data(), data.size());
+  }
+  else if (input->elementType() == ANARI_UFIXED8_VEC4) {
+    convert_fixed8x4_to_float4(input->data(), data.data(), data.size());
+  }
+  else if (input->elementType() == ANARI_UFIXED8_RGBA_SRGB) {
+    // this is WRONG in that it ignores the SRGB conversion
+    convert_fixed8x4_to_float4(input->data(), data.data(), data.size());
+  }
+  else if (input->elementType() == ANARI_UFIXED8_RGB_SRGB) {
+    // this is WRONG in that it ignores the SRGB conversion
+    convert_fixed8x3_to_float4(input->data(), data.data(), data.size());
+  }
+  else if (input->elementType() == ANARI_UFIXED16) {
+    convert_fixed16_to_float4(input->data(), data.data(), data.size());
+  }
+  else if (input->elementType() == ANARI_UFIXED16_VEC2) {
+    convert_fixed16x2_to_float4(input->data(), data.data(), data.size());
+  }
+  else if (input->elementType() == ANARI_UFIXED16_VEC3) {
+    convert_fixed16x3_to_float4(input->data(), data.data(), data.size());
+  }
+  else if (input->elementType() == ANARI_UFIXED16_VEC4) {
+    convert_fixed16x4_to_float4(input->data(), data.data(), data.size());
+  }
+  else if (input->elementType() == ANARI_FLOAT32) {
+    convert_float1_to_float4(input->dataAs<float>(), data.data(), data.size());
+  }
+  else if (input->elementType() == ANARI_FLOAT32_VEC2) {
+    convert_float2_to_float4(input->dataAs<math::float2>(), data.data(), data.size());
+  }
+  else if (input->elementType() == ANARI_FLOAT32_VEC3) {
+    convert_float3_to_float4(input->dataAs<math::float3>(), data.data(), data.size());
+  }
+  else if (input->elementType() == ANARI_FLOAT32_VEC4) {
+    memcpy(data.data(), input->data(), input->totalSize() * sizeof(math::float4));
+  }
+  else {
+    return false;
+  }
+  return true;
 }
 
 inline uint32_t make_8bit(const float f)
@@ -224,11 +252,8 @@ inline bool convert_to_rgba8(
   return false;
 }
 
-static BNData makeBarneyData(BNContext context,
-                             int slot,
-                             const helium::IntrusivePtr<helium::Array> &input,
-                             helium::BaseObject *warnObject
-                             )
+static BNData makeBarneyData(
+    BNContext context, int slot, const helium::IntrusivePtr<helium::Array> &input)
 {
   BNData res{0};
 
@@ -239,9 +264,6 @@ static BNData makeBarneyData(BNContext context,
       res = bnDataCreate(context, slot, BN_FLOAT4, input->totalSize(), input->data());
     }
     else if (convert_to_float4(input, data) && !data.empty()) {
-      warnObject->reportMessage(ANARI_SEVERITY_DEBUG,
-                                "makeBarneyData converts %s to float4",
-                                anari::toString(input->elementType()));
       res = bnDataCreate(context, slot, BN_FLOAT4, data.size(), data.data());
     }
     else {

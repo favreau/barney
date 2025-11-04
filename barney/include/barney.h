@@ -1,6 +1,18 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
+// ======================================================================== //
+// Copyright 2023-2025 Ingo Wald                                            //
+//                                                                          //
+// Licensed under the Apache License, Version 2.0 (the "License");          //
+// you may not use this file except in compliance with the License.         //
+// You may obtain a copy of the License at                                  //
+//                                                                          //
+//     http://www.apache.org/licenses/LICENSE-2.0                           //
+//                                                                          //
+// Unless required by applicable law or agreed to in writing, software      //
+// distributed under the License is distributed on an "AS IS" BASIS,        //
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
+// See the License for the specific language governing permissions and      //
+// limitations under the License.                                           //
+// ======================================================================== //
 
 #pragma once
 
@@ -103,43 +115,43 @@ typedef enum {
   BN_TEXTURE,
   BN_TEXTURE_3D,
   /*! scalar types */
-  BN_INT8=100,
+  BN_INT8,
   BN_INT8_VEC2,
   BN_INT8_VEC3,
   BN_INT8_VEC4,
-  BN_UINT8=110,
+  BN_UINT8,
   BN_UINT8_VEC2,
   BN_UINT8_VEC3,
   BN_UINT8_VEC4,
-  BN_INT16=120,
+  BN_INT16,
   BN_INT16_VEC2,
   BN_INT16_VEC3,
   BN_INT16_VEC4,
-  BN_UINT16=130,
+  BN_UINT16,
   BN_UINT16_VEC2,
   BN_UINT16_VEC3,
   BN_UINT16_VEC4,
-  BN_INT32=140,
+  BN_INT32,
   BN_INT32_VEC2,
   BN_INT32_VEC3,
   BN_INT32_VEC4,
-  BN_UINT32=150,
+  BN_UINT32,
   BN_UINT32_VEC2,
   BN_UINT32_VEC3,
   BN_UINT32_VEC4,
-  BN_INT64=160,
+  BN_INT64,
   BN_INT64_VEC2,
   BN_INT64_VEC3,
   BN_INT64_VEC4,
-  BN_UINT64=170,
+  BN_UINT64,
   BN_UINT64_VEC2,
   BN_UINT64_VEC3,
   BN_UINT64_VEC4,
-  BN_FLOAT32=180,
+  BN_FLOAT32,
   BN_FLOAT32_VEC2,
   BN_FLOAT32_VEC3,
   BN_FLOAT32_VEC4,
-  BN_FLOAT64=190,
+  BN_FLOAT64,
   BN_FLOAT64_VEC2,
   BN_FLOAT64_VEC3,
   BN_FLOAT64_VEC4,
@@ -160,7 +172,7 @@ typedef enum {
   /* DEPRECATED - USED BN_INT64_VEC<N> */BN_LONG3=BN_INT64_VEC3,
   /* DEPRECATED - USED BN_INT64_VEC<N> */BN_LONG4=BN_INT64_VEC4,
   
-  BN_UFIXED8=300,
+  BN_UFIXED8,
   BN_UFIXED8_RGBA,
   BN_UFIXED8_RGBA_SRGB,
 
@@ -296,6 +308,29 @@ void bnSet4x3fv(BNObject target, const char *paramName, const BNTransform *affin
 
 BARNEY_API
 void bnSet4x4fv(BNObject target, const char *paramName, const bn_float4 *xfm);
+
+/* add cuda vector type variants of set functions; but do that only if
+   cuda.h or cuda/vector_types.h has already been included */
+# ifdef __VECTOR_TYPES__
+BARNEY_API
+void bnSet2ic(BNObject target, const char *paramName, int2 v);
+
+BARNEY_API
+void bnSet3ic(BNObject target, const char *paramName, int3 v);
+
+BARNEY_API
+void bnSet4ic(BNObject target, const char *paramName, int4 v);
+
+BARNEY_API
+void bnSet2fc(BNObject target, const char *paramName, float2 v);
+
+BARNEY_API
+void bnSet3fc(BNObject target, const char *paramName, float3 v);
+
+BARNEY_API
+void bnSet4fc(BNObject target, const char *paramName, float4 v);
+# endif
+
 
 BARNEY_API
 BNContext bnContextCreate(/*! how many data slots this context is to

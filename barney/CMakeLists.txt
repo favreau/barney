@@ -1,6 +1,18 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
-
+# ======================================================================== #
+# Copyright 2023-2024 Ingo Wald                                            #
+#                                                                          #
+# Licensed under the Apache License, Version 2.0 (the "License");          #
+# you may not use this file except in compliance with the License.         #
+# You may obtain a copy of the License at                                  #
+#                                                                          #
+#     http://www.apache.org/licenses/LICENSE-2.0                           #
+#                                                                          #
+# Unless required by applicable law or agreed to in writing, software      #
+# distributed under the License is distributed on an "AS IS" BASIS,        #
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. #
+# See the License for the specific language governing permissions and      #
+# limitations under the License.                                           #
+# ======================================================================== #
 
 message("CMAKE_CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}")
 
@@ -137,7 +149,23 @@ set(HOST_SOURCES
   # *structured* volumes
   volume/StructuredData.h
   volume/StructuredData.cu
+
+  # *planet* volumes
+  volume/PlanetField.h
+  volume/PlanetField.cu
   
+  # *cloud* volumes
+  volume/CloudField.h
+  volume/CloudField.cu
+  
+  # *magnetic* volumes
+  volume/MagneticField.h
+  volume/MagneticField.cu
+
+  # *aurora* volumes
+  volume/AuroraField.h
+  volume/AuroraField.cu
+
   # actual geometry types
   geometry/Geometry.h
   geometry/Geometry.cpp
@@ -158,6 +186,8 @@ set(HOST_SOURCES
   volume/Volume.cpp
   volume/ScalarField.h
   volume/ScalarField.cpp
+  volume/PlanetField.h
+  volume/PlanetField.cu
   volume/MCAccelerator.h
   volume/TransferFunction.h
   volume/TransferFunction.cpp
@@ -229,6 +259,10 @@ set(DEVICE_PROGRAM_SOURCES
   geometry/Capsules.dev.cu
   geometry/Cones.dev.cu
   volume/StructuredData.dev.cu
+  volume/PlanetField.dev.cu
+  volume/CloudField.dev.cu
+  volume/MagneticField.dev.cu
+  volume/AuroraField.dev.cu
   umesh/mc/UMeshMC.dev.cu
 #  umesh/os/AWT.dev.cu
   amr/BlockStructuredMC.dev.cu

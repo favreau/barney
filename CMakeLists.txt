@@ -1,6 +1,18 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
-
+# ======================================================================== #
+# Copyright 2023-2024 Ingo Wald                                            #
+#                                                                          #
+# Licensed under the Apache License, Version 2.0 (the "License");          #
+# you may not use this file except in compliance with the License.         #
+# You may obtain a copy of the License at                                  #
+#                                                                          #
+#     http://www.apache.org/licenses/LICENSE-2.0                           #
+#                                                                          #
+# Unless required by applicable law or agreed to in writing, software      #
+# distributed under the License is distributed on an "AS IS" BASIS,        #
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. #
+# See the License for the specific language governing permissions and      #
+# limitations under the License.                                           #
+# ======================================================================== #
 
 set(BARNEY_VERSION_MAJOR 0)
 set(BARNEY_VERSION_MINOR 10)
@@ -17,6 +29,13 @@ cmake_policy(SET CMP0079 NEW)
 cmake_policy(SET CMP0076 NEW)
 cmake_policy(SET CMP0063 NEW)
 
+#if (WIN32)
+#  # MPI is off by default on windows. whoever wants to use mpi under windows
+#  # probably better know what he's doing, anyway
+#  option(BARNEY_MPI "Enable MPI Support" OFF)
+#else()
+#  option(BARNEY_MPI "Enable MPI Support" OFF)
+#endif()
 option(BARNEY_MPI "Enable MPI Support" OFF)
 
 if (NOT (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR}))
@@ -44,7 +63,6 @@ if (USE_EXP)
 elseif (NOT BARNEY_DISABLE_CUDA) 
   include(CheckLanguage)
   check_language(CUDA)
-  message("CMAKE_CUDA_COMPILER ${CMAKE_CUDA_COMPILER}")
   if (CMAKE_CUDA_COMPILER)
     message("#barney: CUDA _FOUND_! building both cuda and host libs")
     # set cmake cuda arch - this ahs to happen _before_
@@ -76,7 +94,7 @@ elseif (NOT BARNEY_DISABLE_CUDA)
     enable_language(CUDA)
     set(BARNEY_HAVE_CUDA ON)
   else()
-    message(AUTHOR_WARNING "#barney: no CUDA compiler found; disabling cuda/optix backend")
+  message(AUTHOR_WARNING "#barney: no CUDA compiler found; disabling cuda/optix backend")
     set(BARNEY_HAVE_CUDA OFF)
   endif()
 else()
@@ -119,7 +137,6 @@ if (BARNEY_HAVE_CUDA)
     set(OptiX_INSTALL_DIR ${CMAKE_CURRENT_LIST_DIR}/../optix)
   else()
   endif()
-  set(OWL_BUILD_VIEWER OFF)
   add_subdirectory(submodules/owl EXCLUDE_FROM_ALL)
 else()
   add_library(owl-config INTERFACE)

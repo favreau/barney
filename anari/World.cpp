@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #include "World.h"
 // std
@@ -82,9 +81,8 @@ namespace barney_device {
                     "barney::World found %zu surfaces in zero instance",
                     m_zeroSurfaceData->size());
       m_zeroGroup->setParamDirect("surface", getParamDirect("surface"));
-    } else {
+    } else
       m_zeroGroup->removeParam("surface");
-    }
 
     if (m_zeroVolumeData) {
       reportMessage(ANARI_SEVERITY_DEBUG,
@@ -122,19 +120,29 @@ namespace barney_device {
       m_instances.push_back(m_zeroInstance.ptr);
   }
 
-    void World::markFinalized()
-  {
-    deviceState()->markSceneChanged();
-    Object::markFinalized();
-  }
-
-
   BNModel World::makeCurrent()
   {
     auto *state = deviceState();
 
+    // auto barneyModel = state->tether->getModel(uniqueID);
     buildBarneyModel();
     return tetheredModel->model;
+    // if (state->currentWorld != this) {
+    //   if (barneyModel)
+    //     bnRelease(m_barneyModel);
+    //   m_barneyModel = nullptr;
+    //   m_lastBarneyModelBuild = 0;
+    //   m_barneyModel = bnModelCreate(state->context);
+    //   assert(m_barneyModel);
+    //   state->currentWorld = this;
+    // }
+
+    // assert(m_barneyModel);
+    // if (state->objectUpdates.lastSceneChange > m_lastBarneyModelBuild)
+    //   buildBarneyModel();
+
+    // assert(m_barneyModel);
+    // return m_barneyModel;
   }
 
   void World::buildBarneyModel()
@@ -147,12 +155,12 @@ namespace barney_device {
 
     auto barneyModel = tetheredModel->model;
 
-    int  slot    = deviceState()->slot;
+    int slot = deviceState()->slot;
     auto context = deviceState()->tether->context;
 
     std::vector<const Group *> groups;
-    std::vector<BNGroup>       barneyGroups;
-    std::vector<BNTransform>   barneyTransforms;
+    std::vector<BNGroup> barneyGroups;
+    std::vector<BNTransform> barneyTransforms;
 
     groups.reserve(m_instances.size());
     barneyGroups.reserve(m_instances.size());

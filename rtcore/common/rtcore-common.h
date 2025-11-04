@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
-
 #pragma once
 
 #include "barney/barneyConfig.h"
@@ -29,27 +25,26 @@ namespace rtc {
   using range1f = interval<float>;
   
   typedef enum {
-    UCHAR=0,
-    UCHAR4,
+    UCHAR,
+    USHORT,
 
-    INT=10,
+    INT,
     INT2,
     INT3,
     INT4,
       
-    LONG=20,
+    LONG,
     LONG2,
     LONG3,
     LONG4,
       
-    FLOAT=30,
+    FLOAT,
     FLOAT2,
     FLOAT3,
     FLOAT4,
       
-    USHORT=40,
-    
-    // NUM_DATA_TYPES
+    UCHAR4,
+    NUM_DATA_TYPES
   } DataType;
 
   typedef enum {

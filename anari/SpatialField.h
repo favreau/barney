@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #pragma once
 
@@ -152,6 +151,139 @@ namespace barney_device {
     math::float3 m_coordUpperBound;
 
     helium::ChangeObserverPtr<helium::Array3D> m_data;
+  };
+
+  struct PlanetSpatialField : public SpatialField
+  {
+    PlanetSpatialField(BarneyGlobalState *s);
+    void commitParameters() override;
+    void finalize() override;
+
+    BNScalarField createBarneyScalarField() const override;
+
+    box3 bounds() const override;
+    bool isValid() const override;
+
+    mutable BNScalarField m_sf{nullptr};
+
+    static constexpr float DEFAULT_PLANET_RADIUS = 0.9f;
+    static constexpr float DEFAULT_ELEVATION_SCALE = 0.1f;
+    
+    static constexpr const char* VOLUME_SUBTYPE = "planet";
+    static constexpr const char* DEFAULT_ATTR_PLANET_RADIUS = "planetRadius";
+    static constexpr const char* DEFAULT_ATTR_ELEVATION_SCALE = "elevationScale";
+    static constexpr const char* DEFAULT_ATTR_ELEVATION_MAP = "elevationMap";
+    static constexpr const char* DEFAULT_ATTR_DIFFUSE_MAP = "diffuseMap";
+    static constexpr const char* DEFAULT_ATTR_NORMAL_MAP = "normalMap";
+
+    float m_planetRadius{DEFAULT_PLANET_RADIUS};
+    float m_elevationScale{DEFAULT_ELEVATION_SCALE};
+
+     helium::ChangeObserverPtr<helium::Array2D> m_elevationMap;
+     helium::ChangeObserverPtr<helium::Array2D> m_diffuseMap;
+     helium::ChangeObserverPtr<helium::Array2D> m_normalMap;
+  };
+
+  struct CloudSpatialField : public SpatialField
+  {
+    CloudSpatialField(BarneyGlobalState *s);
+    void commitParameters() override;
+    void finalize() override;
+
+    BNScalarField createBarneyScalarField() const override;
+
+    box3 bounds() const override;
+    bool isValid() const override;
+
+    mutable BNScalarField m_sf{nullptr};
+
+    static constexpr const char* VOLUME_SUBTYPE = "clouds";
+    static constexpr const char* DEFAULT_ATTR_CLOUD_DATA = "cloudData";
+    static constexpr const char* DEFAULT_ATTR_PLANET_RADIUS = "planetRadius";
+    static constexpr const char* DEFAULT_ATTR_ATMOSPHERE_THICKNESS = "atmosphereThickness";
+
+    static constexpr float DEFAULT_PLANET_RADIUS = 0.9f;
+    static constexpr float DEFAULT_ATMOSPHERE_THICKNESS = 0.01f;
+
+    float m_planetRadius{DEFAULT_PLANET_RADIUS};
+    float m_atmosphereThickness{DEFAULT_ATMOSPHERE_THICKNESS};
+
+     helium::ChangeObserverPtr<helium::Array3D> m_cloudData;
+  };
+
+  struct MagneticSpatialField : public SpatialField
+  {
+    MagneticSpatialField(BarneyGlobalState *s);
+    void commitParameters() override;
+    void finalize() override;
+
+    BNScalarField createBarneyScalarField() const override;
+
+    box3 bounds() const override;
+    bool isValid() const override;
+
+    mutable BNScalarField m_sf{nullptr};
+
+    static constexpr const char* VOLUME_SUBTYPE = "magnetic";
+    static constexpr const char* DEFAULT_ATTR_EQUATOR_STRENGTH = "equatorStrength";
+    static constexpr const char* DEFAULT_ATTR_POLE_STRENGTH = "poleStrength";
+    static constexpr const char* DEFAULT_ATTR_DIPOLE_TILT = "dipoleTilt";
+
+    static constexpr float DEFAULT_EQUATOR_STRENGTH = 31000.0f;  // nT (nanotesla)
+    static constexpr float DEFAULT_POLE_STRENGTH = 62000.0f;     // nT
+    static constexpr float DEFAULT_DIPOLE_TILT = 11.5f;          // degrees
+
+    float m_equatorStrength{DEFAULT_EQUATOR_STRENGTH};
+    float m_poleStrength{DEFAULT_POLE_STRENGTH};
+    float m_dipoleTilt{DEFAULT_DIPOLE_TILT};
+  };
+
+  struct AuroraSpatialField : public SpatialField
+  {
+    AuroraSpatialField(BarneyGlobalState *s);
+    void commitParameters() override;
+    void finalize() override;
+
+    BNScalarField createBarneyScalarField() const override;
+
+    box3 bounds() const override;
+    bool isValid() const override;
+
+    mutable BNScalarField m_sf{nullptr};
+
+    static constexpr const char* VOLUME_SUBTYPE = "aurora";
+    static constexpr const char* DEFAULT_ATTR_INTENSITY = "intensity";
+    static constexpr const char* DEFAULT_ATTR_WAVE_FREQUENCY = "waveFrequency";
+    static constexpr const char* DEFAULT_ATTR_WAVE_AMPLITUDE = "waveAmplitude";
+    static constexpr const char* DEFAULT_ATTR_TIME = "time";
+    static constexpr const char* DEFAULT_ATTR_ALTITUDE_MIN = "altitudeMin";
+    static constexpr const char* DEFAULT_ATTR_ALTITUDE_MAX = "altitudeMax";
+    static constexpr const char* DEFAULT_ATTR_THICKNESS = "thickness";
+    static constexpr const char* DEFAULT_ATTR_TURBULENCE = "turbulence";
+    static constexpr const char* DEFAULT_ATTR_NUM_CURTAINS = "numCurtains";
+    static constexpr const char* DEFAULT_ATTR_MAGNETIC_LATITUDE = "magneticLatitude";
+
+    static constexpr float DEFAULT_INTENSITY = 1.0f;        // Reduced for proper visibility
+    static constexpr float DEFAULT_WAVE_FREQUENCY = 25.0f;
+    static constexpr float DEFAULT_WAVE_AMPLITUDE = 0.005f;  // Very small for unit volume
+    static constexpr float DEFAULT_TIME = 0.0f;
+    static constexpr float DEFAULT_ALTITUDE_MIN = 0.91f;     // Just above cloud layer (0.9+0.01)
+    static constexpr float DEFAULT_ALTITUDE_MAX = 0.94f;     // Thin atmospheric shell
+    static constexpr float DEFAULT_THICKNESS = 0.002f;       // Very thin curtains for unit volume
+    static constexpr float DEFAULT_TURBULENCE = 0.1f;
+    static constexpr float DEFAULT_NUM_CURTAINS = 8.0f;
+    static constexpr float DEFAULT_MAGNETIC_LATITUDE = 0.0f;
+
+    float m_intensity{DEFAULT_INTENSITY};
+    float m_waveFrequency{DEFAULT_WAVE_FREQUENCY};
+    float m_waveAmplitude{DEFAULT_WAVE_AMPLITUDE};
+    float m_time{DEFAULT_TIME};
+    float m_altitudeMin{DEFAULT_ALTITUDE_MIN};
+    float m_altitudeMax{DEFAULT_ALTITUDE_MAX};
+    float m_thickness{DEFAULT_THICKNESS};
+    float m_turbulence{DEFAULT_TURBULENCE};
+    float m_numCurtains{DEFAULT_NUM_CURTAINS};
+    float m_magneticLatitude{DEFAULT_MAGNETIC_LATITUDE};
   };
 
 } // namespace barney_device

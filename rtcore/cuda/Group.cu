@@ -1,6 +1,18 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
+// ======================================================================== //
+// Copyright 2023-2025 Ingo Wald                                            //
+//                                                                          //
+// Licensed under the Apache License, Version 2.0 (the "License");          //
+// you may not use this file except in compliance with the License.         //
+// You may obtain a copy of the License at                                  //
+//                                                                          //
+//     http://www.apache.org/licenses/LICENSE-2.0                           //
+//                                                                          //
+// Unless required by applicable law or agreed to in writing, software      //
+// distributed under the License is distributed on an "AS IS" BASIS,        //
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
+// See the License for the specific language governing permissions and      //
+// limitations under the License.                                           //
+// ======================================================================== //
 
 #define CUBQL_GPU_BUILDER_IMPLEMENTATION 1
 
@@ -127,13 +139,11 @@ namespace rtc {
         BARNEY_CUDA_CALL(Free(d_instanceRecords));
         d_instanceRecords = 0;
       }
-      if (numInstances) {
-        BARNEY_CUDA_CALL(Malloc((void **)&d_instanceRecords,
-                                numInstances*sizeof(InstanceRecord)));
-        BARNEY_CUDA_CALL(Memcpy(d_instanceRecords,h_instances.data(),
-                                numInstances*sizeof(InstanceRecord),
-                                cudaMemcpyDefault));
-      }
+      BARNEY_CUDA_CALL(Malloc((void **)&d_instanceRecords,
+                              numInstances*sizeof(InstanceRecord)));
+      BARNEY_CUDA_CALL(Memcpy(d_instanceRecords,h_instances.data(),
+                              numInstances*sizeof(InstanceRecord),
+                              cudaMemcpyDefault));
       h_instances.clear();
       device->sync();
       
@@ -141,12 +151,10 @@ namespace rtc {
       // compute bounds for bvh constuction
       // ------------------------------------------------------------------
       box3f *instBounds = 0;
-      if (numInstances) {
-        BARNEY_CUDA_CALL(Malloc((void **)&instBounds,
-                                numInstances*sizeof(box3f)));
-        computeInstanceBounds<<<divRoundUp(numInstances,1024),1024,0,device->stream>>>
-          (instBounds,d_instanceRecords,numInstances);
-      }
+      BARNEY_CUDA_CALL(Malloc((void **)&instBounds,
+                              numInstances*sizeof(box3f)));
+      computeInstanceBounds<<<divRoundUp(numInstances,1024),1024,0,device->stream>>>
+        (instBounds,d_instanceRecords,numInstances);
       device->sync();
 
       // ------------------------------------------------------------------

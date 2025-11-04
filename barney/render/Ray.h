@@ -1,6 +1,18 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
+// ======================================================================== //
+// Copyright 2023-2023 Ingo Wald                                            //
+//                                                                          //
+// Licensed under the Apache License, Version 2.0 (the "License");          //
+// you may not use this file except in compliance with the License.         //
+// You may obtain a copy of the License at                                  //
+//                                                                          //
+//     http://www.apache.org/licenses/LICENSE-2.0                           //
+//                                                                          //
+// Unless required by applicable law or agreed to in writing, software      //
+// distributed under the License is distributed on an "AS IS" BASIS,        //
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
+// See the License for the specific language governing permissions and      //
+// limitations under the License.                                           //
+// ======================================================================== //
 
 #pragma once
 
@@ -88,7 +100,7 @@ namespace BARNEY_NS {
     
     struct Ray {
 #if RTC_DEVICE_CODE
-      inline __rtc_device void setVolumeHit(vec3f P, float t, vec3f albedo);
+      inline __rtc_device void setVolumeHit(vec3f P, vec3f N, float t, vec3f albedo);
       inline __rtc_device PackedBSDF getBSDF() const;
       inline __rtc_device void setHit(vec3f P, vec3f N, float t,
                                     const PackedBSDF &packedBSDF);
@@ -153,7 +165,7 @@ namespace BARNEY_NS {
       this->P         = P;
     }
     
-    inline __rtc_device void Ray::setVolumeHit(vec3f P,
+    inline __rtc_device void Ray::setVolumeHit(vec3f P, vec3f N,
                                              float t,
                                              vec3f albedo)
     {
@@ -161,7 +173,7 @@ namespace BARNEY_NS {
                             albedo.x,
                             albedo.y,
                             albedo.z);
-      setHit(P,vec3f(0.f),t,
+      setHit(P,N,t,
              packedBSDF::Phase(albedo));
     }
 

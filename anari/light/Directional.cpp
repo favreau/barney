@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #include "light/Directional.h"
 
@@ -26,8 +25,8 @@ namespace barney_device {
   {
     if (!m_bnLight)
       return;
-    bnSetVec(m_bnLight, "direction", m_direction);
-    bnSetVec(m_bnLight, "color", m_color);
+    bnSet3fc(m_bnLight, "direction", m_direction);
+    bnSet3fc(m_bnLight, "color", m_color);
     bnSet1f (m_bnLight, "radiance", m_radiance);
     bnSet1f (m_bnLight, "irradiance", m_irradiance);
     bnCommit(m_bnLight);

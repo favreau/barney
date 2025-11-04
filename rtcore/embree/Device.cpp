@@ -1,6 +1,18 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
+// ======================================================================== //
+// Copyright 2023-2025 Ingo Wald                                            //
+//                                                                          //
+// Licensed under the Apache License, Version 2.0 (the "License");          //
+// you may not use this file except in compliance with the License.         //
+// You may obtain a copy of the License at                                  //
+//                                                                          //
+//     http://www.apache.org/licenses/LICENSE-2.0                           //
+//                                                                          //
+// Unless required by applicable law or agreed to in writing, software      //
+// distributed under the License is distributed on an "AS IS" BASIS,        //
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
+// See the License for the specific language governing permissions and      //
+// limitations under the License.                                           //
+// ======================================================================== //
 
 #include "rtcore/embree/Device.h"
 #include "rtcore/embree/Texture.h"
@@ -139,9 +151,6 @@ namespace rtc {
       
       rayHit.ray.mask = -1;
       rayHit.ray.flags = 0;
-      rayHit.hit.Ng_x = 0.f;
-      rayHit.hit.Ng_y = 0.f;
-      rayHit.hit.Ng_z = 0.f;
       rayHit.hit.primID    = RTC_INVALID_GEOMETRY_ID;
       rayHit.hit.geomID    = RTC_INVALID_GEOMETRY_ID;
       rayHit.hit.instID[0] = RTC_INVALID_GEOMETRY_ID;
@@ -203,15 +212,7 @@ namespace rtc {
     
     Device::Device(int physicalGPU)
     {
-      const char *fromEnv = std::getenv("BARNEY_MAX_CPU_THREADS");
-      if (fromEnv) {
-        std::stringstream ss;
-        ss << "verbose=0,threads=" << fromEnv;
-        // ss << "verbose=1,threads=" << fromEnv;
-        embreeDevice = rtcNewDevice(ss.str().c_str());
-      } else {
-        embreeDevice = rtcNewDevice("verbose=0");
-      }
+      embreeDevice = rtcNewDevice("verbose=0");
       ls = createLaunchSystem();
     }
 

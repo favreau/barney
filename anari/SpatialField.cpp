@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 // std
 #include <cfloat>
@@ -26,6 +25,14 @@ SpatialField *SpatialField::createInstance(
     return new BlockStructuredField(s);
   else if (subtype == "structuredRegular")
     return new StructuredRegularField(s);
+  else if (subtype == "planet")
+    return new PlanetSpatialField(s);
+  else if (subtype == "clouds")
+    return new CloudSpatialField(s);
+  else if (subtype == "magnetic")
+    return new MagneticSpatialField(s);
+  else if (subtype == "aurora")
+    return new AuroraSpatialField(s);
   else
     return (SpatialField *)new UnknownObject(ANARI_SPATIAL_FIELD, subtype, s);
 }
@@ -107,8 +114,8 @@ void StructuredRegularField::finalize()
   bnRelease(texture);
 #endif
   bnSet3i(sf, "dims", dims.x, dims.y, dims.z);
-  bnSetVec(sf, "gridOrigin", m_origin);
-  bnSetVec(sf, "gridSpacing", m_spacing);
+  bnSet3fc(sf, "gridOrigin", m_origin);
+  bnSet3fc(sf, "gridSpacing", m_spacing);
   bnCommit(sf);
 }
 
@@ -491,6 +498,330 @@ BNScalarField BlockStructuredField::createBarneyScalarField() const
 box3 BlockStructuredField::bounds() const
 {
   return m_bounds;
+}
+
+// PlanetSpatialField //
+
+PlanetSpatialField::PlanetSpatialField(BarneyGlobalState *s)
+    : SpatialField(s),
+      m_elevationMap(this),
+      m_diffuseMap(this),
+      m_normalMap(this)
+{}
+
+void PlanetSpatialField::commitParameters()
+{
+  Object::commitParameters();
+  m_elevationMap = getParamObject<helium::Array2D>(DEFAULT_ATTR_ELEVATION_MAP);
+  m_diffuseMap = getParamObject<helium::Array2D>(DEFAULT_ATTR_DIFFUSE_MAP);
+  m_normalMap = getParamObject<helium::Array2D>(DEFAULT_ATTR_NORMAL_MAP);
+
+  m_planetRadius = std::clamp(
+      getParam<float>(DEFAULT_ATTR_PLANET_RADIUS, DEFAULT_PLANET_RADIUS),
+      0.f,
+      1.f);
+  m_elevationScale = std::clamp(
+      getParam<float>(DEFAULT_ATTR_ELEVATION_SCALE, DEFAULT_ELEVATION_SCALE),
+      0.f,
+      1.f);
+
+  if (m_sf) {
+    bnSet1f(m_sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
+    bnSet1f(m_sf, DEFAULT_ATTR_ELEVATION_SCALE, m_elevationScale);
+  }
+}
+
+void PlanetSpatialField::finalize()
+{
+  // Planet field is always valid - it doesn't require external data
+}
+
+bool PlanetSpatialField::isValid() const
+{
+  return true; // Planet field provides default layered structure
+}
+
+BNScalarField PlanetSpatialField::createBarneyScalarField() const
+{
+  if (!isValid())
+    return {};
+
+  int slot = deviceState()->slot;
+  auto context = deviceState()->tether->context;
+
+  m_sf = bnScalarFieldCreate(context, slot, "planet");
+
+  // Set planet parameters
+  bnSet1f(m_sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
+  bnSet1f(m_sf, DEFAULT_ATTR_ELEVATION_SCALE, m_elevationScale);
+
+  // Set texture maps if provided
+  if (m_elevationMap) {
+    BNTextureData td = bnTextureData2DCreate(context,
+        slot,
+        BN_FLOAT32,
+        m_elevationMap->size().x,
+        m_elevationMap->size().y,
+        m_elevationMap->data());
+    bnSetObject(m_sf, DEFAULT_ATTR_ELEVATION_MAP, td);
+    bnRelease(td);
+  }
+
+  if (m_diffuseMap) {
+    BNTextureData td = bnTextureData2DCreate(context,
+        slot,
+        BN_FLOAT32_VEC4,
+        m_diffuseMap->size().x,
+        m_diffuseMap->size().y,
+        m_diffuseMap->data());
+    bnSetObject(m_sf, DEFAULT_ATTR_DIFFUSE_MAP, td);
+    bnRelease(td);
+  }
+
+  if (m_normalMap) {
+    BNTextureData td = bnTextureData2DCreate(context,
+        slot,
+        BN_FLOAT32_VEC4,
+        m_normalMap->size().x,
+        m_normalMap->size().y,
+        m_normalMap->data());
+    bnSetObject(m_sf, DEFAULT_ATTR_NORMAL_MAP, td);
+    bnRelease(td);
+  }
+
+  bnCommit(m_sf);
+  return m_sf;
+}
+
+box3 PlanetSpatialField::bounds() const
+{
+  const float totalRadius = m_planetRadius + m_elevationScale;
+  return box3(-math::float3(totalRadius), math::float3(totalRadius));
+}
+
+// CloudSpatialField //
+
+CloudSpatialField::CloudSpatialField(BarneyGlobalState *s)
+    : SpatialField(s), m_cloudData(this)
+{}
+
+void CloudSpatialField::commitParameters()
+{
+  Object::commitParameters();
+
+  m_cloudData = getParamObject<helium::Array3D>(DEFAULT_ATTR_CLOUD_DATA);
+
+  m_planetRadius = std::clamp(
+      getParam<float>(DEFAULT_ATTR_PLANET_RADIUS, DEFAULT_PLANET_RADIUS),
+      0.f,
+      1.f);
+  m_atmosphereThickness =
+      std::clamp(getParam<float>(DEFAULT_ATTR_ATMOSPHERE_THICKNESS,
+                     DEFAULT_ATMOSPHERE_THICKNESS),
+          0.f,
+          1.f);
+
+  // Update parameters if scalar field already exists
+  if (m_sf) {
+    bnSet1f(m_sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
+    bnSet1f(m_sf, DEFAULT_ATTR_ATMOSPHERE_THICKNESS, m_atmosphereThickness);
+    
+    // Set cloud data texture if provided
+    if (m_cloudData) {
+      BNTextureData td = bnTextureData3DCreate(deviceState()->tether->context,
+          deviceState()->slot,
+          BN_FLOAT32,
+          m_cloudData->size().x,
+          m_cloudData->size().y,
+          m_cloudData->size().z,
+          m_cloudData->data());
+      bnSetObject(m_sf, DEFAULT_ATTR_CLOUD_DATA, td);
+      bnRelease(td);
+    }
+  }
+}
+
+void CloudSpatialField::finalize()
+{
+  // Cloud field is always valid - it can work without external data
+}
+
+bool CloudSpatialField::isValid() const
+{
+  return true; // Cloud field provides default behavior even without cloudData
+}
+
+BNScalarField CloudSpatialField::createBarneyScalarField() const
+{
+  if (!isValid())
+    return {};
+
+  int slot = deviceState()->slot;
+  auto context = deviceState()->tether->context;
+
+  m_sf = bnScalarFieldCreate(context, slot, "clouds");
+
+  // Set cloud parameters
+  bnSet1f(m_sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
+  bnSet1f(m_sf, DEFAULT_ATTR_ATMOSPHERE_THICKNESS, m_atmosphereThickness);
+
+  // Set cloud data texture if provided
+  if (m_cloudData) {
+    BNTextureData td = bnTextureData3DCreate(context,
+        slot,
+        BN_FLOAT32,
+        m_cloudData->size().x,
+        m_cloudData->size().y,
+        m_cloudData->size().z,
+        m_cloudData->data());
+    bnSetObject(m_sf, DEFAULT_ATTR_CLOUD_DATA, td);
+    bnRelease(td);
+  }
+
+  bnCommit(m_sf);
+  return m_sf;
+}
+
+box3 CloudSpatialField::bounds() const
+{
+  const float totalRadius = m_planetRadius + m_atmosphereThickness;
+  return box3(-math::float3(totalRadius), math::float3(totalRadius));
+}
+
+// MagneticSpatialField //
+
+MagneticSpatialField::MagneticSpatialField(BarneyGlobalState *s)
+    : SpatialField(s)
+{}
+
+void MagneticSpatialField::commitParameters()
+{
+  Object::commitParameters();
+
+  m_equatorStrength = getParam<float>(DEFAULT_ATTR_EQUATOR_STRENGTH, DEFAULT_EQUATOR_STRENGTH);
+  m_poleStrength = getParam<float>(DEFAULT_ATTR_POLE_STRENGTH, DEFAULT_POLE_STRENGTH);
+  m_dipoleTilt = getParam<float>(DEFAULT_ATTR_DIPOLE_TILT, DEFAULT_DIPOLE_TILT);
+
+  if (m_sf) {
+    bnSet1f(m_sf, DEFAULT_ATTR_EQUATOR_STRENGTH, m_equatorStrength);
+    bnSet1f(m_sf, DEFAULT_ATTR_POLE_STRENGTH, m_poleStrength);
+    bnSet1f(m_sf, DEFAULT_ATTR_DIPOLE_TILT, m_dipoleTilt);
+  }
+}
+
+void MagneticSpatialField::finalize()
+{
+  // Magnetic field is always valid - provides Earth's dipole field computation
+}
+
+bool MagneticSpatialField::isValid() const
+{
+  return true; // Magnetic field provides analytical dipole field
+}
+
+BNScalarField MagneticSpatialField::createBarneyScalarField() const
+{
+  if (!isValid())
+    return {};
+
+  int slot = deviceState()->slot;
+  auto context = deviceState()->tether->context;
+
+  m_sf = bnScalarFieldCreate(context, slot, "magnetic");
+
+  // Set magnetic field parameters
+  bnSet1f(m_sf, DEFAULT_ATTR_EQUATOR_STRENGTH, m_equatorStrength);
+  bnSet1f(m_sf, DEFAULT_ATTR_POLE_STRENGTH, m_poleStrength);
+  bnSet1f(m_sf, DEFAULT_ATTR_DIPOLE_TILT, m_dipoleTilt);
+
+  bnCommit(m_sf);
+  return m_sf;
+}
+
+box3 MagneticSpatialField::bounds() const
+{
+  // Earth's magnetic field extends well beyond the planet
+  // Use a sphere with radius ~3 Earth radii to capture magnetosphere
+  const float magnetosphereRadius = 3.0f;
+  return box3(-math::float3(magnetosphereRadius), math::float3(magnetosphereRadius));
+}
+
+// AuroraSpatialField //
+
+AuroraSpatialField::AuroraSpatialField(BarneyGlobalState *s)
+    : SpatialField(s)
+{}
+
+void AuroraSpatialField::commitParameters()
+{
+  Object::commitParameters();
+
+  m_intensity = getParam<float>(DEFAULT_ATTR_INTENSITY, DEFAULT_INTENSITY);
+  m_waveFrequency = getParam<float>(DEFAULT_ATTR_WAVE_FREQUENCY, DEFAULT_WAVE_FREQUENCY);
+  m_waveAmplitude = getParam<float>(DEFAULT_ATTR_WAVE_AMPLITUDE, DEFAULT_WAVE_AMPLITUDE);
+  m_time = getParam<float>(DEFAULT_ATTR_TIME, DEFAULT_TIME);
+  m_altitudeMin = getParam<float>(DEFAULT_ATTR_ALTITUDE_MIN, DEFAULT_ALTITUDE_MIN);
+  m_altitudeMax = getParam<float>(DEFAULT_ATTR_ALTITUDE_MAX, DEFAULT_ALTITUDE_MAX);
+  m_thickness = getParam<float>(DEFAULT_ATTR_THICKNESS, DEFAULT_THICKNESS);
+  m_turbulence = getParam<float>(DEFAULT_ATTR_TURBULENCE, DEFAULT_TURBULENCE);
+  m_numCurtains = getParam<float>(DEFAULT_ATTR_NUM_CURTAINS, DEFAULT_NUM_CURTAINS);
+  m_magneticLatitude = getParam<float>(DEFAULT_ATTR_MAGNETIC_LATITUDE, DEFAULT_MAGNETIC_LATITUDE);
+
+  if (m_sf) {
+    bnSet1f(m_sf, DEFAULT_ATTR_INTENSITY, m_intensity);
+    bnSet1f(m_sf, DEFAULT_ATTR_WAVE_FREQUENCY, m_waveFrequency);
+    bnSet1f(m_sf, DEFAULT_ATTR_WAVE_AMPLITUDE, m_waveAmplitude);
+    bnSet1f(m_sf, DEFAULT_ATTR_TIME, m_time);
+    bnSet1f(m_sf, DEFAULT_ATTR_ALTITUDE_MIN, m_altitudeMin);
+    bnSet1f(m_sf, DEFAULT_ATTR_ALTITUDE_MAX, m_altitudeMax);
+    bnSet1f(m_sf, DEFAULT_ATTR_THICKNESS, m_thickness);
+    bnSet1f(m_sf, DEFAULT_ATTR_TURBULENCE, m_turbulence);
+    bnSet1f(m_sf, DEFAULT_ATTR_NUM_CURTAINS, m_numCurtains);
+    bnSet1f(m_sf, DEFAULT_ATTR_MAGNETIC_LATITUDE, m_magneticLatitude);
+  }
+}
+
+void AuroraSpatialField::finalize()
+{
+  // Aurora field is always valid - provides procedural aurora computation
+}
+
+bool AuroraSpatialField::isValid() const
+{
+  return true; // Aurora field provides procedural aurora generation
+}
+
+BNScalarField AuroraSpatialField::createBarneyScalarField() const
+{
+  if (!isValid())
+    return {};
+
+  int slot = deviceState()->slot;
+  auto context = deviceState()->tether->context;
+
+  m_sf = bnScalarFieldCreate(context, slot, "aurora");
+
+  // Set aurora parameters
+  bnSet1f(m_sf, DEFAULT_ATTR_INTENSITY, m_intensity);
+  bnSet1f(m_sf, DEFAULT_ATTR_WAVE_FREQUENCY, m_waveFrequency);
+  bnSet1f(m_sf, DEFAULT_ATTR_WAVE_AMPLITUDE, m_waveAmplitude);
+  bnSet1f(m_sf, DEFAULT_ATTR_TIME, m_time);
+  bnSet1f(m_sf, DEFAULT_ATTR_ALTITUDE_MIN, m_altitudeMin);
+  bnSet1f(m_sf, DEFAULT_ATTR_ALTITUDE_MAX, m_altitudeMax);
+  bnSet1f(m_sf, DEFAULT_ATTR_THICKNESS, m_thickness);
+  bnSet1f(m_sf, DEFAULT_ATTR_TURBULENCE, m_turbulence);
+  bnSet1f(m_sf, DEFAULT_ATTR_NUM_CURTAINS, m_numCurtains);
+  bnSet1f(m_sf, DEFAULT_ATTR_MAGNETIC_LATITUDE, m_magneticLatitude);
+
+  bnCommit(m_sf);
+  return m_sf;
+}
+
+box3 AuroraSpatialField::bounds() const
+{
+  // Aurora appears in atmospheric shell
+  const float auroraRadius = m_altitudeMax;
+  return box3(-math::float3(auroraRadius), math::float3(auroraRadius));
 }
 
 } // namespace barney_device

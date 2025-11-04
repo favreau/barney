@@ -1,6 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2023-2024 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
-
 
 #include "Camera.h"
 
@@ -71,9 +70,9 @@ void Orthographic::commitParameters()
 
 void Orthographic::finalize()
 {
-  bnSetVec(m_barneyCamera, "up", m_up);
-  bnSetVec(m_barneyCamera, "position", m_pos);
-  bnSetVec(m_barneyCamera, "direction", m_dir);
+  bnSet3fc(m_barneyCamera, "up", m_up);
+  bnSet3fc(m_barneyCamera, "position", m_pos);
+  bnSet3fc(m_barneyCamera, "direction", m_dir);
   bnSet1f(m_barneyCamera, "aspect", m_aspect);
   bnSet1f(m_barneyCamera, "height", m_height);
   bnSet1f(m_barneyCamera, "near", m_near);
@@ -103,9 +102,9 @@ void Perspective::commitParameters()
 
 void Perspective::finalize()
 {
-  bnSetVec(m_barneyCamera, "up", m_up);
-  bnSetVec(m_barneyCamera, "position", m_pos);
-  bnSetVec(m_barneyCamera, "direction", m_dir);
+  bnSet3fc(m_barneyCamera, "up", m_up);
+  bnSet3fc(m_barneyCamera, "position", m_pos);
+  bnSet3fc(m_barneyCamera, "direction", m_dir);
   bnSet1f(m_barneyCamera, "aspect", m_aspect);
   bnSet1f(m_barneyCamera, "focusDistance", m_focusDistance);
   bnSet1f(m_barneyCamera, "apertureRadius", m_apertureRadius);
