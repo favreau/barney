@@ -1,18 +1,86 @@
 ![](samples/collage-triangles.jpg)
 
-# Barney - A ANARI-Compliant, GPU-Accelerated Path Tracer for High-Quality (and optionally Data-Parallel) Sci-Vis Rendering
+# Barney - A Multi-GPU (and optionally, Multi-Node) Implementation of the ANARI Rendering API
 
-DISCLAIMER: Barney is a first prototype of a possibly-to-be data
-parallel ray/path tracer for sci-vis content. It can actually do quite
-a bit of "stuff" already; however, it is still experimental software.
-In particular, `barney` is still *very much* "in flux": There are no
-stable releases, nor are any of the feature-sets fully "spec'ed" or
-even committed to; and any of the information in the remainder of this
-document way well be outdated or even plain wrong by the time you are
-going to read this. I will be happy about any feedback, bug reports,
-reports about errors, broken documentation, etc, and will fix what I
-can and who quickly I can - but do not expect this to be a finished
-product in any way, shape, or form.
+Build Status:
+[![Windows](https://github.com/NVIDIA/barney/actions/workflows/Windows.yml/badge.svg)](https://github.com/NVIDIA/barney/actions/workflows/Windows.yml) 
+[![Ubuntu](https://github.com/NVIDIA/barney/actions/workflows/Ubuntu.yml/badge.svg)](https://github.com/NVIDIA/barney/actions/workflows/Ubuntu.yml)
+
+
+DISCLAIMER: Though Barney has by now reached a stage where it can be
+expected to be reasonably stable and complete, it is still under
+active development. If you run into bugs, missing features, or simply
+broken/outdated documentation please report those at
+https://github.com/NVIDIA/barney 
+
+# What is Barney?
+
+Barney is a renderer that implements that ANARI Cross Platform
+Rendering API (https://www.khronos.org/anari/) primarily for NVIDIA
+OptiX and CUDA capable GPUs.
+
+### Multi-GPU and Multi-Node Parallel Rendering
+
+Barney is highly scalable, and can be used for both local, single-GPU
+rendering (as I do on my laptop on a daily basis), as well as for
+parallel rendering on multi-GPU nodes, and even for MPI based
+data-replicated and/or data-parallel rendering:
+
+- Single-GPU usage: For single GPU usage Barney works like any other
+  ANARI device; multiple GPus or MPI are *not* required to run Barney.
+
+- Multi-GPU: Barney can also make use of more than one GPU. Barney can
+  either be used in *explicit* multi-GPU mode (where the ANARI app
+  explicitly creates different devices for different GPUs, and then
+  "tethers" those using a specific ANARI extension we have introduced
+  for this purpose); or it can simply use *automatic* multi-GPU, where
+  Barney will simply grab all available GPUs and split the work across
+  them.
+  
+- Multi-Node: For cluster, cloud, or HPC environments Barney also
+  supports MPI-parallel rendering (if built with MPI support), in
+  which case an MPI-parallel application can use Barney across
+  multiple different GPUs and/or nodes.
+  
+### Data Parallel and/or Data Replicated Rendering
+
+Barney also supports both *data parallel* as well as *data replicated*
+rendering: In fully data replicated rendering each GPU (and/or each
+node) gets the exact same copy of all the scene content, and different
+GPUs render different portions of the final image (ie, this should
+make rendering the *same* content *faster*). In fully data parallel
+(also sometimes called "distributed") rendering the scene to be
+rendered is "distributed" across the different GPUs/nodes, so
+different GPUs get different parts of what is logically a single
+model; then barney will make sure that each GPU "sees" all content
+during rendering (in this mode, Barney will not get faster by adding
+more GPUs, but it can render models much larger than what a single GPU
+could have rendered). Barney also supports some intermediate modes
+where, for example, different nodes work data parallel, but all GPUs
+on a given node work data replicated, etc.
+
+### Primarily Focussed on Sci-Vis Content
+
+Barney is primarily intended for the type and size of data one could
+encounter in a scientific visualization (sci-vis) content, when used
+from tools such as, for example, ParaView. Barney supports all the
+typical geometric types required by such applications (triangle
+meshes, spheres, cylinders, curves, etc), and also supports the
+typical scalar field/volume data types such as structured volumes as
+well as Block-Structured AMR and unstructured data (as far as these
+are currently supported by ANARI).
+
+### Path Tracer
+
+Though clearly focussed on Sci-Vis, Barney is still a pretty capable
+ray/path tracer on its own, and will, if scene and material data is
+properly set up, also do HRDI environment map lighting, indirect
+illumiation, glossy and specular reflection/refraction; depth-of-field
+cameras; point-, directional, and to some degree area lights;
+volumetric scattering, etc. Barney will clearly not achieve the kind
+of correctness or realism that pure global illumination renderers like
+Mitsuba or PBRT will be able to achieve; but it is still expected to
+behave creditably on typical non-Sci Vis rendering content.
 
 # Building and Running
 
@@ -40,10 +108,10 @@ For CUDA/OptiX Acceleration, it also requires:
 
 - `CUDA`, version 12 and up.
 
-- `OWL` (https://github.com/owl-project/owl). Note OWL gets pulled in as a git
+- `OWL` (https://github.com/NVIDIA/owl). Note OWL gets pulled in as a git
    submodule, no need to externally get and install.
 
-- `OptiX`, as part of OWL. See documentation in OWL (https://github.com/owl-project/owl) for 
+- `OptiX`, as part of OWL. See documentation in OWL (https://github.com/NVIDIA/owl) for 
    where to get, and how to best install for OWL to easily find it)
    
 For MPI-based data-parallel rendering:
@@ -53,61 +121,14 @@ For MPI-based data-parallel rendering:
   typically develop under---and test with OpenMPI---4.1.6 or 5.0, but
   users have reported working with other MPI flavors such as  MPICH.
 
-## Building Barney - no ANARI
-
-Barney is built via CMake, using the cmake build/install procedure
-that works on all of Linux, Windows, and Mac; but how to build it depends
-on whether you want to build _just_ barney, or also (more likely) the
-"Banari" ANARI device through which ANARI apps can use it.
-
-## Building Barney - no ANARI
-
-For native barney apps - ie, that do not want to use ANARI - you
-can build without the ANARI SDK as follows:
-
-``` bash
-cd barney
-mkdir build
-cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=<same-install-dir-as-anari> [options]
-cmake --build .. [ --config Release ]
-cmake --install .. [ --config Release ]
-```
-
-Two notes for windows builds:
-
-	- The "linux-like" calls to `cmake ...` etc will also work under windows, in
-	both cmd.exe and powershell. You can of course also use the cmake and VS gui's, but you *will* have to then run the install target.
-	
-	- On windows you should specify the `--config Release` (or `Debug`, if you prefer) for both build and install; under Linux you can ignore this. For an ANARI build (see below) oyu want to use the same config as used for the ANARI SDK.
-
-In the cmake config step, you may specify the following options:
-   
-
-- `-DOptiX_INSTALL_DIR=<path to optix>` . You can also set an env
-  variable of the same name.
-
-- `-DBARNEY_BACKEND_EMBREE=ON` Enables (slower) CPU rendering without
-  a GPU. Off by deault
-
-- `-DBARNEY_BACKEND_OPTIX=OFF` Optix is on by default, this will turn
-  it off.
-
-- `-DBARNEY_DISABLE_DENOISING=ON` Denoising is on by default (assuming
-  a suitable denoiser can be found), this will turn it off
-
-- `-DBARNEY_MPI=ON` Controls whether `barney_mpi` and
-  `libanari_library_barney_mpi` will be build. Off by default,
-  requires an appropriate (cuda aware!) MPI
-
-## Building Barney - *with* ANARI
+## Building Barney
 
 The ANARI build of barney works in pretty much the same way (and with
 the same options), but requires a pre-built and installed `ANARI-SDK` from
 https://github.com/KhronosGroup/ANARI-SDK. As to the time of this writing,
 you need ANARI SDK version 0.15 (or `next_release` branch)
 
-First, build and install the ANARI SDK:
+First, build and install the ANARI SDK (https://github.com/KhronosGroup/ANARI-SDK):
 
 ``` bash
 cd ANARI-SDK
@@ -118,7 +139,7 @@ cmake --build .. [ --config Release ]
 cmake --install .. [ --config Release ]
 ```
 
-Then, build barney as described above, using same install dir:
+Then, build barney, using same install dir:
 ``` bash
 cd barney
 mkdir build
@@ -128,22 +149,8 @@ cmake --build .. [ --config Release ]
 cmake --install .. [ --config Release ]
 ```
 
-To install into a different install dir than ANARI (you probably shouldn't?):
-``` bash
-cd barney
-mkdir build
-cd build
-cmake .. \
-   -DCMAKE_INSTALL_PREFIX=<same-install-dir-as-anari> \
-   -DCMAKE_PREFIX_PATH=<anari-install-dir>,<whatever-other_paths> \
-   [options]
-cmake --build .. [ --config Release ]
-cmake --install .. [ --config Release ]
-```
-
-This accepts the same options as above. Note the command-line cmake build/install 
-calls will also work on windows (though of course you can also use cmake-gui
-and visual studio gui if you prefer so).
+By default Barney builds without MPI support; to enable this add
+`-DBARNEY_MPI=ON` to the cmake config command.
 
 
 

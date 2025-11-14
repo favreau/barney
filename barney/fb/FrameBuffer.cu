@@ -1,18 +1,6 @@
-// ======================================================================== //
-// Copyright 2023-2024 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 
 #include "barney/common/barney-common.h"
 #include "barney/common/math.h"
@@ -25,25 +13,6 @@
 
 namespace BARNEY_NS {
   RTC_IMPORT_COMPUTE2D(linearToFixed8);
-
-  inline __rtc_device uint32_t _make_8bit(const float f)
-  {
-    return min(255,max(0,int(f*256.f)));
-  }
-
-  inline __rtc_device uint32_t make_rgba8(const vec4f color)
-  {
-    uint32_t r = _make_8bit(color.x);
-    uint32_t g = _make_8bit(color.y);
-    uint32_t b = _make_8bit(color.z);
-    uint32_t a = _make_8bit(color.w);
-    uint32_t ret =
-      (r <<  0) |
-      (g <<  8) |
-      (b << 16) |
-      (a << 24);
-    return ret;
-  }
 
   FrameBuffer::FrameBuffer(Context *context,
                            const DevGroup::SP &devices,
@@ -128,7 +97,7 @@ namespace BARNEY_NS {
     v = saturate(v);
     if (SRGB)
       (vec3f&)v = linear_to_srgb((vec3f&)v);
-    out[idx] = make_rgba(v);
+    out[idx] = ::BARNEY_NS::make_rgba(v);
   }
 #endif
 
@@ -189,12 +158,16 @@ namespace BARNEY_NS {
        color directly into our linearbuffer, and won't write normal at
        all */
     bool doDenoising = denoiser != 0 && enableDenoising;
+    BNDataType actualInternalColorFormat
+      = doDenoising
+      ? BN_FLOAT4
+      : colorChannelFormat;
     if (doDenoising) {
       /* run denoiser - this will write pixels in float4 format to
          denoiser->out_rgba */
       float blendFactor = (accumID-1) / (accumID+100.f);
       // iw - denoiser (currently) doesn't have eaccess to device
-      // stream, so runs in default straem --> have to make sure that
+      // stream, so runs in default stream --> have to make sure that
       // device stream is synced before we run it.
       device->rtc->sync();
       denoiser->run(blendFactor);
@@ -231,6 +204,7 @@ namespace BARNEY_NS {
     device->rtc->sync();
   }
 
+  
   /*! "finalize" and read the frame buffer. If this function gets
       called with a null hostPtr we will still finalize the frame
       buffer and run the denoiser, just not copy it to host; the
@@ -239,9 +213,40 @@ namespace BARNEY_NS {
                          void *appMemory,
                          BNDataType requestedFormat)
   {
-    if (!isOwner) return;
     if (!appMemory) return;
 
+    if (!isOwner) {
+      // iw 'in theory' apps shoudln't even call map on any rank other
+      // thank rank 0, but if they do, let's report them valid black,
+      // zero-opacity, depth-infinity frame in case the app wants to
+      // do compositing with that.
+      int numPixels = this->numPixels.x * this->numPixels.y;
+      if (channel == BN_FB_DEPTH) {
+        for (int i=0;i<numPixels;i++)
+          ((float*)appMemory)[i] = BARNEY_INF;
+        return;
+      }
+      if (channel == BN_FB_DEPTH ||
+          channel == BN_FB_PRIMID ||
+          channel == BN_FB_INSTID ||
+          channel == BN_FB_OBJID) {
+        for (int i=0;i<numPixels;i++)
+          ((uint32_t*)appMemory)[i] = 0;
+        return;
+      }
+      if (channel == BN_FB_COLOR && requestedFormat == BN_FLOAT4) {
+        for (int i=0;i<numPixels;i++)
+          ((vec4f*)appMemory)[i] = vec4f(0.f,0.f,0.f,0.f);
+        return;
+      }
+      if (channel == BN_FB_COLOR && requestedFormat == BN_UFIXED8_RGBA) {
+        for (int i=0;i<numPixels;i++)
+          ((uint32_t*)appMemory)[i] = 0x00000000;
+        return;
+      }
+      return;
+    }
+    
     Device *device = getDenoiserDevice();
     SetActiveGPU forDuration(device);
 

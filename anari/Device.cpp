@@ -1,5 +1,6 @@
-// Copyright 2023-2024 Ingo Wald
+// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
+
 
 #include "Device.h"
 #if BARNEY_MPI
@@ -269,10 +270,24 @@ namespace barney_device {
                 << std::endl;
     }
 
+#if BARNEY_MPI
+    if (comm) {
+      int initialized = false;
+      MPI_Initialized(&initialized);
+      if (!initialized) {
+        std::cout << "#barney: anari_barney device created in MPI mode (loaded from barney_mpi device in either mpi or default mode), but MPI not yet initialized. Doing so now, but this is not how it should be."
+                  << std::endl;
+        int required = MPI_THREAD_MULTIPLE;
+        int provided = 0;
+        MPI_Init_thread(nullptr,nullptr,required,&provided);
+      }
+    }
+#endif
+    
     m_state = std::make_unique<BarneyGlobalState>(this_device());
   }
 
-  BarneyDevice::BarneyDevice() : helium::BaseDevice(default_statusFunc, nullptr)
+    BarneyDevice::BarneyDevice() : helium::BaseDevice(default_statusFunc, nullptr)
   {
     m_state = std::make_unique<BarneyGlobalState>(this_device());
   }
@@ -285,6 +300,10 @@ namespace barney_device {
     auto &state = *deviceState();
     state.commitBuffer.clear();
     reportMessage(ANARI_SEVERITY_DEBUG, "destroying barney device (%p)", this);
+#if BARNEY_MPI
+    if (commNeedsFree)
+      MPI_Comm_free(&comm);
+#endif
   }
 
   void BarneyDevice::initDevice()
@@ -295,6 +314,8 @@ namespace barney_device {
     reportMessage(ANARI_SEVERITY_DEBUG, "initializing barney device (%p)", this);
 
     auto state = deviceState();
+    
+    bool forceLocalRendering = false;
 
     try {
       int rank = 0, size = 1;
@@ -306,11 +327,24 @@ namespace barney_device {
           MPI_Init(nullptr, nullptr);
         MPI_Comm_rank(comm, &rank);
         MPI_Comm_size(comm, &size);
-      } else
+      } else {
+        forceLocalRendering = true;
         reportMessage
           (ANARI_SEVERITY_DEBUG,
            "app passed null communicator, falling back to local rendering");
+      }
 #endif
+
+      if (m_cudaDevice == -2)
+        reportMessage
+          (ANARI_SEVERITY_DEBUG, "cudaDevice not explicitly set, leaving which GPU(s) to use to barney", m_cudaDevice);
+      else if (m_cudaDevice == -1)
+        reportMessage
+          (ANARI_SEVERITY_DEBUG, "set cudaDevice explicitly set to -1 by user/app, this should force CPU rendering, ", m_cudaDevice);
+      else
+        reportMessage
+          (ANARI_SEVERITY_DEBUG, "using cuda device #%i", m_cudaDevice);
+      
       std::vector<int> gpuIDs;
       int *_gpuIDs   = nullptr;
       int  _gpuCount = -1;
@@ -322,7 +356,11 @@ namespace barney_device {
         _gpuIDs = gpuIDs.data();
         _gpuCount = (int)gpuIDs.size();
       } else {
-        // leave _gpuIDs to nullptr -> allow barney to select which ones to use
+        // for MPI mode, for now let's set num GPUs to one because
+        // that's what data parallel will almost certainly want.
+        if (m_cudaDevice >= 0)
+          _gpuIDs = &m_cudaDevice;
+        _gpuCount = 1;
       }
 
       std::vector<int> dgIDs;
@@ -336,11 +374,9 @@ namespace barney_device {
       int *_dgIDs   = dgIDs.data();
       int  _dgCount = (int)dgIDs.size();
 
-      reportMessage
-        (ANARI_SEVERITY_DEBUG, "using cuda device #%i", m_cudaDevice);
 
 #if BARNEY_MPI
-      if (comm)
+      if (comm && !forceLocalRendering)
         state->tether->context
           = bnMPIContextCreate(comm,
                                _dgIDs,_dgCount,
@@ -390,14 +426,17 @@ namespace barney_device {
       printf("#banari.mpi: got passed a pointer to a MPI "
              "communicator, going to use this.\n");
       comm = *(MPI_Comm *)pointerToComm;
+      commNeedsFree = false;
     } else {
-      comm = MPI_COMM_WORLD;
+      std::cout << "#banari: Device started in MPI mode, but no MPI Communicator passed to it; started with a MPI_Comm_dup() of MPI_COMM_WORLD" << std::endl;
+      MPI_Comm_dup(MPI_COMM_WORLD, &comm);
+      commNeedsFree = true;
     }
     if (comm) {
       int rank, size;
       MPI_Comm_rank(comm,&rank);
       MPI_Comm_size(comm,&size);
-      printf("#banari.mpi: running data parallel on rank %i size %i\n",
+      printf("#banari.mpi: running banari mpi device on rank %i size %i\n",
              rank,size);
     }
 #endif
@@ -452,17 +491,11 @@ namespace barney_device {
   {
     ANARIDevice dev = 0;
     try {
-      // int numGPUs = 0;
-      // bnCountAvailableDevice(&numGPUs);
-      // if (numGPUs == 0)
-      //   throw std::runtime_error("#barney/anari: cannot create device - no
-      //   GPUs?");
       dev = (ANARIDevice) new BarneyDevice();
       return dev;
     } catch (std::exception &err) {
       std::cerr << "#banari: exception creating anari 'barney' GPU device: "
                 << err.what() << std::endl;
-      //    throw;
       return 0;
     }
   }

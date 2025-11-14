@@ -1,19 +1,8 @@
-// ======================================================================== //
-// Copyright 2023-2025 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
 
+
+#include "rtcore/AppInterface.h"
 #include "barney/api/Context.h"
 #if BARNEY_MPI
 # include "barney/common/MPIWrappers.h"
@@ -168,9 +157,9 @@ namespace barney_api {
   
   inline Object *checkGet(BNObject object)
   {
+    assert(object);
     if (!object) throw std::runtime_error
                    ("@barney: trying to use/access null object");
-    assert(object);
     return (Object *)object;
   }
 
@@ -489,6 +478,7 @@ namespace barney_api {
                               int slot,
                               const char *type)
   {
+    LOG_API_ENTRY;
     Context *context = checkGet(_context);
     std::shared_ptr<Material> material
       = context->createMaterial(slot,type);
@@ -500,6 +490,7 @@ namespace barney_api {
                             int slot,
                             const char *type)
   {
+    LOG_API_ENTRY;
     Context *context = checkGet(_context);
     std::shared_ptr<Sampler> sampler
       = context->createSampler(slot,type);
@@ -511,6 +502,7 @@ namespace barney_api {
   BNCamera bnCameraCreate(BNContext _context,
                           const char *type)
   {
+    LOG_API_ENTRY;
     Context *context = checkGet(_context);
     std::shared_ptr<Camera> camera
       = context->createCamera(type);
@@ -570,11 +562,11 @@ namespace barney_api {
     Context *context = checkGet(_context);
     std::shared_ptr<Data> data
       = context->createData(slot,dataType);
-    data->set(items,(int)numItems);
+    data->set(items,numItems);
     return (BNData)context->initReference(data);
   }
 
-      BARNEY_API
+  BARNEY_API
   void bnDataSet(BNData _data,
                  size_t numItems,
                  const void *items)
@@ -863,7 +855,7 @@ namespace barney_api {
 #if BARNEY_BACKEND_EMBREE && !BARNEY_BACKEND_OPTIX
           1
 #else
-          numGPUs == 1 && _gpuIDs[0] == -1          
+          numGPUs == 1 && _gpuIDs && _gpuIDs[0] == -1          
 #endif
           ) {
 # if BARNEY_BACKEND_EMBREE
@@ -950,10 +942,27 @@ namespace barney_api {
 	    _gpuIDs = &negOne;
 	    numGPUs = 1;
     }
+    int mpiIsAlreadyInitialized = false;
+    BN_MPI_CALL(Initialized(&mpiIsAlreadyInitialized));
+    if (!mpiIsAlreadyInitialized) {
+      std::cerr << "#barney: barney initialized in MPI mode, but MPI itself isn't initialized yet; falling back to local rendering" << std::endl;
+      return bnContextCreate(dataRanksOnThisContext,
+                             numDataRanksOnThisContext == 0
+                             ? 1 : numDataRanksOnThisContext,
+                             /*! which gpu(s) to use for this
+                               process. default is to distribute
+                               node's GPUs equally over all ranks on
+                               that given node */
+                             _gpuIDs,
+                             numGPUs);
+    }
     mpi::Comm world(_comm);
     if (world.size == 1) {
-      // std::cout << "#bn: MPIContextInit, but only one rank - using
-      // local context" << std::endl;
+      std::cout << "#bn: MPIContextInit, but only one rank - using local context" << std::endl;
+      if (_gpuIDs == nullptr && numGPUs == 1) {
+        static const int const_zero = 0;
+        _gpuIDs = &const_zero;
+      }
       return bnContextCreate(dataRanksOnThisContext,
                              numDataRanksOnThisContext == 0
                              ? 1 : numDataRanksOnThisContext,
@@ -989,43 +998,35 @@ namespace barney_api {
     // has four GPUs the first rank will take 0 and 1; and the second
     // one will take 2 and 3.
     // ------------------------------------------------------------------
-    if (_gpuIDs) {
-      // gpu IDs _are_ specified by user - use them, or fail
-      assert(numGPUs > 0);
-      if (
-#if BARNEY_BACKEND_EMBREE && !BARNEY_BACKEND_OPTIX
-          1
-#else
-          numGPUs == 1 && _gpuIDs[0] == -1          
-#endif
-          ) {
-        
-# if BARNEY_BACKEND_EMBREE
-        return (BNContext)createMPIContext_embree(world,
-                                                  // workers,
-                                                  // isActiveWorker,
-                                                  dataGroupIDs);
-# else
-        throw std::runtime_error
-          ("explicitly asked for CPU backend, "
-           "but cpu/embree backend not compiled in");
-# endif
-      }
-#if BARNEY_BACKEND_OPTIX
-      return (BNContext)createMPIContext_optix(world,
-                                               dataGroupIDs,
-                                               numGPUs,_gpuIDs);
-#elif BARNEY_BACKEND_CUDA
-      return (BNContext)createMPIContext_cuda(world,
-                                              dataGroupIDs,
-                                              numGPUs,_gpuIDs);
-#else
-      throw std::runtime_error("explicitly asked for gpus to use, "
-                               "but optix backend not compiled in");
-#endif
-    }
-    throw std::runtime_error("barney mpi-parallel without a list of GPUs is no longer supporteed");
-  }
 
+#if BARNEY_BACKEND_EMBREE && !(BARNEY_BACKEND_CUDA || BARNEY_BACKEND_OPTIX)
+    // bool forceCPU = true;
+#else
+    if (_gpuIDs && numGPUs == 1 && _gpuIDs[0] == -1) {
+# if BARNEY_BACKEND_EMBREE
+      return (BNContext)createMPIContext_embree(world,
+                                                dataGroupIDs);
+# else
+      throw std::runtime_error
+        ("explicitly asked for CPU backend, "
+         "but cpu/embree backend not compiled in");
+# endif
+    }
+#endif
+
+#if BARNEY_BACKEND_OPTIX
+    return (BNContext)createMPIContext_optix(world,
+                                             dataGroupIDs,
+                                             numGPUs,_gpuIDs);
+#elif BARNEY_BACKEND_CUDA
+    return (BNContext)createMPIContext_cuda(world,
+                                            dataGroupIDs,
+                                            numGPUs,_gpuIDs);
+#else
+    throw std::runtime_error("explicitly asked for gpus to use, "
+                             "but optix backend not compiled in");
+#endif
+  }
+  
 #endif
 } // ::barney_api

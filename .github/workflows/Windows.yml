@@ -1,0 +1,106 @@
+name: Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        include:
+          - os: windows-2022
+            cuda: "12.6.2"
+            visual-studio: "Visual Studio 17 2022"
+            shell: "powershell"
+            config: Release
+            build_flags:
+          - os: windows-2022
+            cuda: "13.0.0"
+            visual-studio: "Visual Studio 17 2022"
+            shell: "powershell"
+            config: Release
+            build_flags:
+          - os: windows-2025
+            cuda: "12.6.2"
+            visual-studio: "Visual Studio 17 2022"
+            shell: "powershell"
+            config: Release
+            build_flags:
+          - os: windows-2025
+            cuda: "13.0.0"
+            visual-studio: "Visual Studio 17 2022"
+            shell: "powershell"
+            config: Release
+            build_flags:
+          - os: windows-2025
+            cuda: "none"
+            visual-studio: "Visual Studio 17 2022"
+            shell: "powershell"
+            config: Release
+            build_flags: "-DBARNEY_BACKEND_EMBREE=ON -DBARNEY_BACKEND_CUDA=OFF -DBARNEY_BACKEND_OPTIX=OFF"
+
+    env:
+      cmake_generator: "${{ matrix.visual-studio }}"
+      visual_studio: "${{ matrix.visual-studio }}"
+      build_dir: "build"
+    steps:
+      - name: Checkout barney
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Install CUDA
+        if: contains(matrix.cuda, '.')
+        uses: Jimver/cuda-toolkit@master
+        id: cuda-toolkit
+        with:
+          cuda: ${{ matrix.cuda }}
+
+      - name: Checkout ANARI-SDK
+        uses: actions/checkout@v5
+        with:
+          repository: "KhronosGroup/ANARI-SDK"
+          path: ${{github.workspace}}/anari_sdk
+
+      - name: create shared install dir
+        run: |
+          mkdir ${{github.workspace}}\install
+
+      - name: CMake Configure ANARI-SDK
+        run: |
+          mkdir ${{github.workspace}}\anari_sdk\build
+          cd ${{github.workspace}}\anari_sdk\build
+          cmake -DCMAKE_BUILD_TYPE=${{matrix.config}} -A x64 -G "${{ matrix.visual-studio }}" .. -DCMAKE_INSTALL_PREFIX=${{github.workspace}}\install -DBUILD_HELIDE_DEVICE=OFF -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF
+
+      - name: build ANARI-SDK
+        run: |
+          cd ${{github.workspace}}\anari_sdk\build
+          cmake --build . --config ${{ matrix.config }}
+
+      - name: install ANARI-SDK
+        run: |
+          cd ${{github.workspace}}\anari_sdk\build
+          cmake --install . --config ${{ matrix.config }}
+
+      - name: CMake Configure barney
+        run: |
+          mkdir ${{github.workspace}}\build
+          cd ${{github.workspace}}\build
+          cmake -A x64 -G "${{ matrix.visual-studio }}" .. -DCMAKE_INSTALL_PREFIX=${{github.workspace}}\install ${{ matrix.build_flags }} -DCMAKE_BUILD_TYPE=${{matrix.config}}
+
+      - name: build barney
+        run: |
+          cd ${{github.workspace}}\build
+          cmake --build . --config ${{ matrix.config }}
+
+      - name: install barney
+        run: |
+          cd ${{github.workspace}}\build
+          cmake --install .  --config ${{ matrix.config }}

@@ -14,17 +14,15 @@
 # limitations under the License.                                           #
 # ======================================================================== #
 
-set(BARNEY_VERSION_MAJOR 0)
-set(BARNEY_VERSION_MINOR 10)
-set(BARNEY_VERSION_PATCH 0)
+set(BARNEY_VERSION_MAJOR 1)
+set(BARNEY_VERSION_MINOR 1)
+set(BARNEY_VERSION_PATCH 1)
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.24)
 
 set(CMAKE_CUDA_USE_STATIC_CUDA_RUNTIME ON)
 
-if(${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.18)
-  cmake_policy(SET CMP0104 NEW)
-endif()
+cmake_policy(SET CMP0104 NEW)
 cmake_policy(SET CMP0079 NEW)
 cmake_policy(SET CMP0076 NEW)
 cmake_policy(SET CMP0063 NEW)
@@ -64,28 +62,10 @@ elseif (NOT BARNEY_DISABLE_CUDA)
   include(CheckLanguage)
   check_language(CUDA)
   if (CMAKE_CUDA_COMPILER)
-    message("#barney: CUDA _FOUND_! building both cuda and host libs")
-    # set cmake cuda arch - this ahs to happen _before_
-    # enable_language(cuda), or cmake will default to '52', which is
-    # almost certainly going to be wrong
-    #    if (NOT CMAKE_CUDA_ARCHITECTURES)
-    if (${CMAKE_VERSION} VERSION_LESS 3.24)
-      # 'native' only appeared in cmake 3.24
-      message(AUTHOR_WARNING
-        " You're using a cmake < 3.24; we cannot use the 'native' or \n"
-        " 'all-major' targets with that, so will default to '70;80'\n"
-        " If you want/need to build for other architectures, either\n"
-        " set this to something else in the cmake dialog, or call\n"
-        " cmake with an explicit list such as, for example\n"
-        "     cmake -DCMAKE_CUDA_ARCHITECTURES=\"75;80;86\" ...\n"
-	)
-      set(BARNEY_CUDA_ARCHITECTURES_INIT "70;80")
+    if (WIN32)
+      set(BARNEY_CUDA_ARCHITECTURES_INIT "all-major")
     else()
-      if (WIN32)
-        set(BARNEY_CUDA_ARCHITECTURES_INIT "all-major")
-      else()
-        set(BARNEY_CUDA_ARCHITECTURES_INIT "native")
-      endif()
+      set(BARNEY_CUDA_ARCHITECTURES_INIT "native")
     endif()
     set(CMAKE_CUDA_ARCHITECTURES
       "${BARNEY_CUDA_ARCHITECTURES_INIT}" CACHE STRING
@@ -156,6 +136,8 @@ target_link_libraries(barney_config
 target_include_directories(barney_config INTERFACE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/3rdParty/nanovdb/include/>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/3rdParty/glm/include/>
 )
 # ------------------------------------------------------------------
 # configure which backend(s) to build
@@ -227,7 +209,6 @@ target_link_libraries(barney_config
 # ------------------------------------------------------------------
 # barney ray tracing core
 # ------------------------------------------------------------------
-message("configuring rtcore")
 add_subdirectory(rtcore)
   
 
@@ -235,7 +216,7 @@ add_subdirectory(rtcore)
 # barney system, api, and mpi stuff
 # ------------------------------------------------------------------
 if (BARNEY_MPI)
-  message("configuring mpi")
+  message("#barney: configuring mpi")
   find_package(MPI)
   if (MPI_FOUND)
     message("#barney: MPI found, including in default barney and banari builds")
@@ -245,11 +226,7 @@ if (BARNEY_MPI)
   endif()
 endif()
 
-message("configuring barney")
 add_subdirectory(barney)
-
-
-
 
 
 # ------------------------------------------------------------------
@@ -260,24 +237,9 @@ add_subdirectory(anari)
 
 
 
-
-
-
-
-
-
 # ------------------------------------------------------------------
 # cmake install stuff
 # ------------------------------------------------------------------
-
-#if (APPLE)
-#  list(APPEND CMAKE_INSTALL_RPATH "@loader_path")
-#  list(APPEND CMAKE_INSTALL_RPATH "@loader_path/../${CMAKE_INSTALL_LIBDIR}")
-#elseif(UNIX)
-#  list(APPEND CMAKE_INSTALL_RPATH "$ORIGIN")
-#  list(APPEND CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
-#endif()
-
 
 set(BARNEY_CMAKE_INSTALL_DESTINATION
   ${CMAKE_INSTALL_LIBDIR}/cmake/barney-${BARNEY_VERSION}#${PROJECT_VERSION}
@@ -295,7 +257,6 @@ configure_package_config_file(
 message("BARNEY_VERSION ${BARNEY_VERSION}")
 write_basic_package_version_file(
     "barneyConfigVersion.cmake"
-#    VERSION ${PROJECT_VERSION}
     VERSION ${BARNEY_VERSION}
     COMPATIBILITY SameMajorVersion
 )
