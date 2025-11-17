@@ -184,9 +184,12 @@ namespace barney_device {
     bool isValid() const override;
 
   private:
-    BNScalarField m_sf{nullptr};
-    float m_planetRadius;
-    float m_atmosphereThickness;
+    float m_planetRadius{0.5f};
+    float m_atmosphereThickness{0.7f};  // PlanetField: base 0.5, atmosphere extends to 1.2
+    float m_elevationScale{0.1f};
+    helium::IntrusivePtr<helium::Array2D> m_elevationMap;
+    helium::IntrusivePtr<helium::Array2D> m_diffuseMap;
+    helium::IntrusivePtr<helium::Array2D> m_normalMap;
   };
 
   struct CloudSpatialField : public SpatialField
@@ -201,9 +204,8 @@ namespace barney_device {
     bool isValid() const override;
 
   private:
-    BNScalarField m_sf{nullptr};
-    float m_planetRadius;
-    float m_atmosphereThickness;
+    float m_planetRadius{0.9f};
+    float m_atmosphereThickness{0.01f};
     helium::ChangeObserverPtr<helium::Array3D> m_cloudData;
   };
 
@@ -219,10 +221,9 @@ namespace barney_device {
     bool isValid() const override;
 
   private:
-    BNScalarField m_sf{nullptr};
-    float m_equatorStrength;
-    float m_poleStrength;
-    float m_dipoleTilt;
+    float m_equatorStrength{30000.0f};
+    float m_poleStrength{60000.0f};
+    float m_dipoleTilt{11.5f};
   };
 
   struct AuroraSpatialField : public SpatialField
@@ -237,17 +238,16 @@ namespace barney_device {
     bool isValid() const override;
 
   private:
-    BNScalarField m_sf{nullptr};
-    float m_intensity;
-    float m_waveFrequency;
-    float m_waveAmplitude;
-    float m_time;
-    float m_altitudeMin;
-    float m_altitudeMax;
-    float m_thickness;
-    float m_turbulence;
-    float m_numCurtains;
-    float m_magneticLatitude;
+    float m_intensity{1.0f};
+    float m_waveFrequency{0.5f};
+    float m_waveAmplitude{0.2f};
+    float m_time{0.0f};
+    float m_altitudeMin{100000.0f};
+    float m_altitudeMax{500000.0f};
+    float m_thickness{50000.0f};
+    float m_turbulence{0.5f};
+    float m_numCurtains{6.0f};
+    float m_magneticLatitude{75.0f};
   };
 
 } // namespace barney_device

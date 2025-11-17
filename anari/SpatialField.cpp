@@ -22,9 +22,12 @@
 
 // Earth2 constants
 #define DEFAULT_ATTR_PLANET_RADIUS "planetRadius"
-#define DEFAULT_PLANET_RADIUS 6371000.0f
+#define DEFAULT_PLANET_RADIUS 0.9f
 #define DEFAULT_ATTR_ATMOSPHERE_THICKNESS "atmosphereThickness"
-#define DEFAULT_ATMOSPHERE_THICKNESS 100000.0f
+#define DEFAULT_ATMOSPHERE_THICKNESS 0.01f
+#define DEFAULT_ATTR_ELEVATION_MAP "elevationMap"
+#define DEFAULT_ATTR_ELEVATION_SCALE "elevationScale"
+#define DEFAULT_ELEVATION_SCALE 0.1f
 #define DEFAULT_ATTR_CLOUD_DATA "cloudData"
 #define DEFAULT_ATTR_DIFFUSE_MAP "diffuseMap"
 #define DEFAULT_ATTR_NORMAL_MAP "normalMap"
@@ -78,7 +81,7 @@ namespace barney_device {
       return new StructuredRegularField(s);
     else if (subtype == "planet")
       return new PlanetSpatialField(s);
-    else if (subtype == "cloud")
+    else if (subtype == "clouds")
       return new CloudSpatialField(s);
     else if (subtype == "magnetic")
       return new MagneticSpatialField(s);
@@ -165,8 +168,8 @@ namespace barney_device {
     bnRelease(texture);
 #endif
     bnSet3i(sf, "dims", dims.x, dims.y, dims.z);
-    bnSet3fc(sf, "gridOrigin", m_origin);
-    bnSet3fc(sf, "gridSpacing", m_spacing);
+    bnSet3f(sf, "gridOrigin", m_origin.x, m_origin.y, m_origin.z);
+    bnSet3f(sf, "gridSpacing", m_spacing.x, m_spacing.y, m_spacing.z);
     bnCommit(sf);
   }
 
@@ -674,11 +677,117 @@ namespace barney_device {
     Object::commitParameters();
     m_planetRadius = getParam<float>(DEFAULT_ATTR_PLANET_RADIUS, DEFAULT_PLANET_RADIUS);
     m_atmosphereThickness = getParam<float>(DEFAULT_ATTR_ATMOSPHERE_THICKNESS, DEFAULT_ATMOSPHERE_THICKNESS);
+    m_elevationScale = getParam<float>(DEFAULT_ATTR_ELEVATION_SCALE, DEFAULT_ELEVATION_SCALE);
+    m_elevationMap = getParamObject<helium::Array2D>(DEFAULT_ATTR_ELEVATION_MAP);
+    m_diffuseMap = getParamObject<helium::Array2D>(DEFAULT_ATTR_DIFFUSE_MAP);
+    m_normalMap = getParamObject<helium::Array2D>(DEFAULT_ATTR_NORMAL_MAP);
   }
 
   void PlanetSpatialField::finalize()
   {
-    // Planet field is always valid
+    if (!isValid())
+      return;
+
+    int slot = deviceState()->slot;
+    auto context = deviceState()->tether->context;
+
+    BNScalarField sf = getBarneyScalarField();
+    
+    // Update planet parameters
+    bnSet1f(sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
+    bnSet1f(sf, DEFAULT_ATTR_ELEVATION_SCALE, m_elevationScale);
+
+    // Update elevation map if provided
+    if (m_elevationMap) {
+      BNDataType barneyType;
+      switch (m_elevationMap->elementType()) {
+      case ANARI_FLOAT32:
+        barneyType = BN_FLOAT32;
+        break;
+      case ANARI_UFIXED8:
+      case ANARI_UINT8:
+        barneyType = BN_UFIXED8;
+        break;
+      default:
+        throw std::runtime_error("elevation map scalar type not implemented ...");
+      }
+      
+      BNTextureData td = bnTextureData2DCreate(context,
+          slot,
+          barneyType,
+          m_elevationMap->size().x,
+          m_elevationMap->size().y,
+          m_elevationMap->data());
+      bnSetObject(sf, DEFAULT_ATTR_ELEVATION_MAP, td);
+      bnRelease(td);
+    }
+
+    // Update diffuse map if provided
+    if (m_diffuseMap) {
+      BNDataType barneyType;
+      switch (m_diffuseMap->elementType()) {
+      case ANARI_FLOAT32:
+        barneyType = BN_FLOAT32;
+        break;
+      case ANARI_UFIXED8:
+      case ANARI_UINT8:
+        barneyType = BN_UFIXED8;
+        break;
+      case ANARI_FLOAT32_VEC4:
+        barneyType = BN_FLOAT32_VEC4;
+        break;
+      case ANARI_UFIXED8_VEC4:
+      case ANARI_UINT8_VEC4:
+        barneyType = BN_UFIXED8_RGBA;
+        break;
+      default:
+        throw std::runtime_error("diffuse map type not implemented ...");
+      }
+      
+      BNTextureData td = bnTextureData2DCreate(context,
+          slot,
+          barneyType,
+          m_diffuseMap->size().x,
+          m_diffuseMap->size().y,
+          m_diffuseMap->data());
+      bnSetObject(sf, DEFAULT_ATTR_DIFFUSE_MAP, td);
+      bnRelease(td);
+    }
+
+    // Update normal map if provided
+    if (m_normalMap) {
+      BNDataType barneyType;
+      switch (m_normalMap->elementType()) {
+      case ANARI_FLOAT32:
+        barneyType = BN_FLOAT32;
+        break;
+      case ANARI_FLOAT32_VEC3:
+        barneyType = BN_FLOAT32_VEC3;
+        break;
+      case ANARI_FLOAT32_VEC4:
+        barneyType = BN_FLOAT32_VEC4;
+        break;
+      case ANARI_UFIXED8_VEC3:
+      case ANARI_UINT8_VEC3:
+      case ANARI_UFIXED8_VEC4:
+      case ANARI_UINT8_VEC4:
+        barneyType = BN_UFIXED8_RGBA;
+        break;
+      default:
+        throw std::runtime_error("normal map type not implemented ...");
+      }
+      
+      BNTextureData td = bnTextureData2DCreate(context,
+          slot,
+          barneyType,
+          m_normalMap->size().x,
+          m_normalMap->size().y,
+          m_normalMap->data());
+      bnSetObject(sf, DEFAULT_ATTR_NORMAL_MAP, td);
+      bnRelease(td);
+    }
+
+    bnCommit(sf);
   }
 
   bool PlanetSpatialField::isValid() const
@@ -688,13 +797,13 @@ namespace barney_device {
 
   BNScalarField PlanetSpatialField::createBarneyScalarField() const
   {
+    if (!isValid())
+      return {};
+
     int slot = deviceState()->slot;
     auto context = deviceState()->tether->context;
 
     BNScalarField sf = bnScalarFieldCreate(context, slot, "planet");
-    bnSet1f(sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
-    bnSet1f(sf, DEFAULT_ATTR_ATMOSPHERE_THICKNESS, m_atmosphereThickness);
-    bnCommit(sf);
     return sf;
   }
 
@@ -716,39 +825,51 @@ void CloudSpatialField::commitParameters()
 
   m_cloudData = getParamObject<helium::Array3D>(DEFAULT_ATTR_CLOUD_DATA);
 
-  m_planetRadius = std::clamp(
-      getParam<float>(DEFAULT_ATTR_PLANET_RADIUS, DEFAULT_PLANET_RADIUS),
-      0.f,
-      1.f);
-  m_atmosphereThickness =
-      std::clamp(getParam<float>(DEFAULT_ATTR_ATMOSPHERE_THICKNESS,
-                     DEFAULT_ATMOSPHERE_THICKNESS),
-          0.f,
-          1.f);
-
-  // Update parameters if scalar field already exists
-  if (m_sf) {
-    bnSet1f(m_sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
-    bnSet1f(m_sf, DEFAULT_ATTR_ATMOSPHERE_THICKNESS, m_atmosphereThickness);
-    
-    // Set cloud data texture if provided
-    if (m_cloudData) {
-      BNTextureData td = bnTextureData3DCreate(deviceState()->tether->context,
-          deviceState()->slot,
-          BN_FLOAT32,
-          m_cloudData->size().x,
-          m_cloudData->size().y,
-          m_cloudData->size().z,
-          m_cloudData->data());
-      bnSetObject(m_sf, DEFAULT_ATTR_CLOUD_DATA, td);
-      bnRelease(td);
-    }
-  }
+  m_planetRadius = getParam<float>(DEFAULT_ATTR_PLANET_RADIUS, DEFAULT_PLANET_RADIUS);
+  m_atmosphereThickness = getParam<float>(DEFAULT_ATTR_ATMOSPHERE_THICKNESS, DEFAULT_ATMOSPHERE_THICKNESS);
 }
 
 void CloudSpatialField::finalize()
 {
-  // Cloud field is always valid - it can work without external data
+  if (!isValid())
+    return;
+
+  int slot = deviceState()->slot;
+  auto context = deviceState()->tether->context;
+
+  BNScalarField sf = getBarneyScalarField();
+  
+  // Update cloud parameters
+  bnSet1f(sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
+  bnSet1f(sf, DEFAULT_ATTR_ATMOSPHERE_THICKNESS, m_atmosphereThickness);
+
+  // Update cloud data texture if provided
+  if (m_cloudData) {
+    BNDataType barneyType;
+    switch (m_cloudData->elementType()) {
+    case ANARI_FLOAT32:
+      barneyType = BN_FLOAT32;
+      break;
+    case ANARI_UFIXED8:
+    case ANARI_UINT8:
+      barneyType = BN_UFIXED8;
+      break;
+    default:
+      throw std::runtime_error("cloud data scalar type not implemented ...");
+    }
+    
+    BNTextureData td = bnTextureData3DCreate(context,
+        slot,
+        barneyType,
+        m_cloudData->size().x,
+        m_cloudData->size().y,
+        m_cloudData->size().z,
+        m_cloudData->data());
+    bnSetObject(sf, DEFAULT_ATTR_CLOUD_DATA, td);
+    bnRelease(td);
+  }
+
+  bnCommit(sf);
 }
 
 bool CloudSpatialField::isValid() const
@@ -765,25 +886,6 @@ BNScalarField CloudSpatialField::createBarneyScalarField() const
   auto context = deviceState()->tether->context;
 
   BNScalarField sf = bnScalarFieldCreate(context, slot, "clouds");
-
-  // Set cloud parameters
-  bnSet1f(sf, DEFAULT_ATTR_PLANET_RADIUS, m_planetRadius);
-  bnSet1f(sf, DEFAULT_ATTR_ATMOSPHERE_THICKNESS, m_atmosphereThickness);
-
-  // Set cloud data texture if provided
-  if (m_cloudData) {
-    BNTextureData td = bnTextureData3DCreate(context,
-        slot,
-        BN_FLOAT32,
-        m_cloudData->size().x,
-        m_cloudData->size().y,
-        m_cloudData->size().z,
-        m_cloudData->data());
-    bnSetObject(sf, DEFAULT_ATTR_CLOUD_DATA, td);
-    bnRelease(td);
-  }
-
-  bnCommit(sf);
   return sf;
 }
 
@@ -806,17 +908,24 @@ void MagneticSpatialField::commitParameters()
   m_equatorStrength = getParam<float>(DEFAULT_ATTR_EQUATOR_STRENGTH, DEFAULT_EQUATOR_STRENGTH);
   m_poleStrength = getParam<float>(DEFAULT_ATTR_POLE_STRENGTH, DEFAULT_POLE_STRENGTH);
   m_dipoleTilt = getParam<float>(DEFAULT_ATTR_DIPOLE_TILT, DEFAULT_DIPOLE_TILT);
-
-  if (m_sf) {
-    bnSet1f(m_sf, DEFAULT_ATTR_EQUATOR_STRENGTH, m_equatorStrength);
-    bnSet1f(m_sf, DEFAULT_ATTR_POLE_STRENGTH, m_poleStrength);
-    bnSet1f(m_sf, DEFAULT_ATTR_DIPOLE_TILT, m_dipoleTilt);
-  }
 }
 
 void MagneticSpatialField::finalize()
 {
-  // Magnetic field is always valid - provides Earth's dipole field computation
+  if (!isValid())
+    return;
+
+  int slot = deviceState()->slot;
+  auto context = deviceState()->tether->context;
+
+  BNScalarField sf = getBarneyScalarField();
+  
+  // Update magnetic field parameters
+  bnSet1f(sf, DEFAULT_ATTR_EQUATOR_STRENGTH, m_equatorStrength);
+  bnSet1f(sf, DEFAULT_ATTR_POLE_STRENGTH, m_poleStrength);
+  bnSet1f(sf, DEFAULT_ATTR_DIPOLE_TILT, m_dipoleTilt);
+
+  bnCommit(sf);
 }
 
 bool MagneticSpatialField::isValid() const
@@ -833,13 +942,6 @@ BNScalarField MagneticSpatialField::createBarneyScalarField() const
   auto context = deviceState()->tether->context;
 
   BNScalarField sf = bnScalarFieldCreate(context, slot, "magnetic");
-
-  // Set magnetic field parameters
-  bnSet1f(sf, DEFAULT_ATTR_EQUATOR_STRENGTH, m_equatorStrength);
-  bnSet1f(sf, DEFAULT_ATTR_POLE_STRENGTH, m_poleStrength);
-  bnSet1f(sf, DEFAULT_ATTR_DIPOLE_TILT, m_dipoleTilt);
-
-  bnCommit(sf);
   return sf;
 }
 
@@ -871,24 +973,31 @@ void AuroraSpatialField::commitParameters()
   m_turbulence = getParam<float>(DEFAULT_ATTR_TURBULENCE, DEFAULT_TURBULENCE);
   m_numCurtains = getParam<float>(DEFAULT_ATTR_NUM_CURTAINS, DEFAULT_NUM_CURTAINS);
   m_magneticLatitude = getParam<float>(DEFAULT_ATTR_MAGNETIC_LATITUDE, DEFAULT_MAGNETIC_LATITUDE);
-
-  if (m_sf) {
-    bnSet1f(m_sf, DEFAULT_ATTR_INTENSITY, m_intensity);
-    bnSet1f(m_sf, DEFAULT_ATTR_WAVE_FREQUENCY, m_waveFrequency);
-    bnSet1f(m_sf, DEFAULT_ATTR_WAVE_AMPLITUDE, m_waveAmplitude);
-    bnSet1f(m_sf, DEFAULT_ATTR_TIME, m_time);
-    bnSet1f(m_sf, DEFAULT_ATTR_ALTITUDE_MIN, m_altitudeMin);
-    bnSet1f(m_sf, DEFAULT_ATTR_ALTITUDE_MAX, m_altitudeMax);
-    bnSet1f(m_sf, DEFAULT_ATTR_THICKNESS, m_thickness);
-    bnSet1f(m_sf, DEFAULT_ATTR_TURBULENCE, m_turbulence);
-    bnSet1f(m_sf, DEFAULT_ATTR_NUM_CURTAINS, m_numCurtains);
-    bnSet1f(m_sf, DEFAULT_ATTR_MAGNETIC_LATITUDE, m_magneticLatitude);
-  }
 }
 
 void AuroraSpatialField::finalize()
 {
-  // Aurora field is always valid - provides procedural aurora computation
+  if (!isValid())
+    return;
+
+  int slot = deviceState()->slot;
+  auto context = deviceState()->tether->context;
+
+  BNScalarField sf = getBarneyScalarField();
+  
+  // Update aurora field parameters
+  bnSet1f(sf, DEFAULT_ATTR_INTENSITY, m_intensity);
+  bnSet1f(sf, DEFAULT_ATTR_WAVE_FREQUENCY, m_waveFrequency);
+  bnSet1f(sf, DEFAULT_ATTR_WAVE_AMPLITUDE, m_waveAmplitude);
+  bnSet1f(sf, DEFAULT_ATTR_TIME, m_time);
+  bnSet1f(sf, DEFAULT_ATTR_ALTITUDE_MIN, m_altitudeMin);
+  bnSet1f(sf, DEFAULT_ATTR_ALTITUDE_MAX, m_altitudeMax);
+  bnSet1f(sf, DEFAULT_ATTR_THICKNESS, m_thickness);
+  bnSet1f(sf, DEFAULT_ATTR_TURBULENCE, m_turbulence);
+  bnSet1f(sf, DEFAULT_ATTR_NUM_CURTAINS, m_numCurtains);
+  bnSet1f(sf, DEFAULT_ATTR_MAGNETIC_LATITUDE, m_magneticLatitude);
+
+  bnCommit(sf);
 }
 
 bool AuroraSpatialField::isValid() const
@@ -905,20 +1014,6 @@ BNScalarField AuroraSpatialField::createBarneyScalarField() const
   auto context = deviceState()->tether->context;
 
   BNScalarField sf = bnScalarFieldCreate(context, slot, "aurora");
-
-  // Set aurora parameters
-  bnSet1f(sf, DEFAULT_ATTR_INTENSITY, m_intensity);
-  bnSet1f(sf, DEFAULT_ATTR_WAVE_FREQUENCY, m_waveFrequency);
-  bnSet1f(sf, DEFAULT_ATTR_WAVE_AMPLITUDE, m_waveAmplitude);
-  bnSet1f(sf, DEFAULT_ATTR_TIME, m_time);
-  bnSet1f(sf, DEFAULT_ATTR_ALTITUDE_MIN, m_altitudeMin);
-  bnSet1f(sf, DEFAULT_ATTR_ALTITUDE_MAX, m_altitudeMax);
-  bnSet1f(sf, DEFAULT_ATTR_THICKNESS, m_thickness);
-  bnSet1f(sf, DEFAULT_ATTR_TURBULENCE, m_turbulence);
-  bnSet1f(sf, DEFAULT_ATTR_NUM_CURTAINS, m_numCurtains);
-  bnSet1f(sf, DEFAULT_ATTR_MAGNETIC_LATITUDE, m_magneticLatitude);
-
-  bnCommit(sf);
   return sf;
 }
 

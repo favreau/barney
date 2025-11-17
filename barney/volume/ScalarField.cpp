@@ -45,7 +45,15 @@ namespace BARNEY_NS {
     if (type == "NanoVDB") {
       return std::make_shared<NanoVDBData>(context,devices);
     }
-    
+    if (type == "planet")
+      return std::make_shared<PlanetField>(context,devices);
+    if (type == "clouds")
+      return std::make_shared<CloudField>(context,devices);
+    if (type == "magnetic")
+      return std::make_shared<MagneticField>(context,devices);
+    if (type == "aurora")
+      return std::make_shared<AuroraField>(context,devices);
+      
     context->warn_unsupported_object("ScalarField",type);
     return {};
   }

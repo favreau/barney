@@ -34,7 +34,7 @@ namespace barney_device {
   inline void bnSet3fc(BNObject o, const char *n, math::float3 v)
   { bnSet3f(o,n,v.x,v.y,v.z); }
   inline void bnSet4fc(BNObject o, const char *n, math::float4 v)
-  { bnSet4f(o,n,v.x,v.y,v.z,v.z); }
+  { bnSet4f(o,n,v.x,v.y,v.z,v.w); }
 
   
   struct box1

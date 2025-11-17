@@ -179,6 +179,14 @@ set(HOST_SOURCES
   volume/MCGrid.h
   volume/MCGrid.cu
   volume/MCAccelerator.h
+  volume/PlanetField.h
+  volume/PlanetField.cu
+  volume/CloudField.h
+  volume/CloudField.cu
+  volume/MagneticField.h
+  volume/MagneticField.cu
+  volume/AuroraField.h
+  volume/AuroraField.cu
   
   common/barney-common.h
   
