@@ -86,6 +86,15 @@ target_link_libraries(anari_library_barney PRIVATE
   anari::helium
 )
 
+# Link Earth2 custom fields if building with OptiX backend
+if (TARGET barney_earth2_optix)
+  target_link_libraries(anari_library_barney PRIVATE
+    -Wl,--whole-archive
+    barney_earth2_optix
+    -Wl,--no-whole-archive
+  )
+endif()
+
 if (BARNEY_MPI)
   add_library(anari_library_barney_mpi SHARED ${BANARI_SOURCES})
   target_link_libraries(anari_library_barney_mpi PRIVATE

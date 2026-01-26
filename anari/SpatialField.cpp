@@ -32,6 +32,8 @@ namespace barney_device {
   SpatialField *SpatialField::createInstance(std::string_view subtype,
                                              BarneyGlobalState *s)
   {
+    std::cout << "[SpatialField::createInstance] Creating field with subtype: '" << subtype << "'" << std::endl;
+    
     if (subtype == "unstructured")
       return new UnstructuredField(s);
     else if (subtype == "amr")
@@ -42,8 +44,19 @@ namespace barney_device {
       return new BlockStructuredField(s);
     else if (subtype == "structuredRegular")
       return new StructuredRegularField(s);
-    else
+    else {
+      std::cout << "[SpatialField::createInstance] Trying to create GenericBarneyField for type '" << subtype << "'" << std::endl;
+      // Try to create a custom Barney scalar field by type name
+      // This supports custom field types registered via ScalarFieldRegistry
+      auto *customField = new GenericBarneyField(s, std::string(subtype));
+      if (customField->isValid()) {
+        std::cout << "[SpatialField::createInstance] GenericBarneyField is VALID, returning it" << std::endl;
+        return customField;
+      }
+      std::cout << "[SpatialField::createInstance] GenericBarneyField is INVALID, deleting and returning UnknownObject" << std::endl;
+      delete customField;
       return (SpatialField *)new UnknownObject(ANARI_SPATIAL_FIELD, subtype, s);
+    }
   }
 
   void SpatialField::markFinalized()
@@ -607,6 +620,237 @@ namespace barney_device {
   box3 BlockStructuredField::bounds() const
   {
     return m_bounds;
+  }
+
+  // GenericBarneyField //
+
+  GenericBarneyField::GenericBarneyField(BarneyGlobalState *s, const std::string &type)
+    : SpatialField(s), m_fieldType(type)
+  {
+    std::cout << "[GenericBarneyField] Constructor called with type: '" << type << "'" << std::endl;
+    // Don't create the field here - let getBarneyScalarField() create it
+    // Just store the type name for later
+  }
+
+  void GenericBarneyField::commitParameters()
+  {
+    Object::commitParameters();
+    
+    // Don't cache arrays in maps - ChangeObserverPtr doesn't work well in containers
+    // Instead, we'll access them directly via getParamObject in applyParametersToField()
+  }
+
+  void GenericBarneyField::finalize()
+  {
+    std::cout << "[GenericBarneyField::finalize] Called for type '" << m_fieldType << "'" << std::endl;
+    
+    // Set bounds to a reasonable default sphere
+    float radius = 10.0f;
+    m_bounds = box3(math::float3(-radius), math::float3(radius));
+    
+    // Ensure the Barney field is created before applying parameters
+    if (!m_bnField) {
+      m_bnField = createBarneyScalarField();
+      if (!m_bnField) {
+        std::cout << "[GenericBarneyField::finalize] Failed to create field, aborting" << std::endl;
+        return;
+      }
+    }
+    
+    // Apply parameters to the Barney field
+    applyParametersToField();
+    
+    std::cout << "[GenericBarneyField::finalize] Done" << std::endl;
+  }
+
+  void GenericBarneyField::markFinalized()
+  {
+    // Call base class to mark scene as changed
+    SpatialField::markFinalized();
+  }
+
+  void GenericBarneyField::applyParametersToField()
+  {
+    if (!m_bnField)
+    {
+        return;
+    }
+    
+    std::cout << "[GenericBarneyField::applyParametersToField] Applying parameters for type '" << m_fieldType << "'" << std::endl;
+    
+    int slot = deviceState()->slot;
+    auto context = deviceState()->tether->context;
+    
+    // Iterate over all parameters and forward them to Barney
+    for (auto it = params_begin(); it != params_end(); ++it) {
+      const std::string& paramName = it->first;
+      ANARIDataType paramType = it->second.type();
+      
+      // Handle array parameters
+      if (paramType == ANARI_ARRAY3D) {
+        auto array = getParamObject<helium::Array3D>(paramName);
+        if (!array || !array->data()) {
+          std::cout << "[GenericBarneyField] 3D Array '" << paramName << "' is null or has no data, skipping" << std::endl;
+          continue;
+        }
+        
+        auto dims = array->size();
+        auto elemType = array->elementType();
+        
+        std::cout << "[GenericBarneyField] Forwarding 3D array '" << paramName << "' dims: " 
+                  << dims.x << "x" << dims.y << "x" << dims.z << std::endl;
+        
+        BNDataType barneyType;
+        switch (elemType) {
+          case ANARI_FLOAT32: barneyType = BN_FLOAT; break;
+          case ANARI_INT32: barneyType = BN_INT; break;
+          case ANARI_UINT8:
+          case ANARI_UFIXED8: barneyType = BN_UFIXED8; break;
+          default:
+            std::cout << "[GenericBarneyField] Unsupported element type for '" << paramName << "', skipping" << std::endl;
+            continue;
+        }
+        
+        BNTextureData td = bnTextureData3DCreate(context, slot, barneyType,
+                                                  dims.x, dims.y, dims.z,
+                                                  array->data());
+        bnSetObject(m_bnField, paramName.c_str(), td);
+        bnRelease(td);
+      }
+      else if (paramType == ANARI_ARRAY2D) {
+        auto array = getParamObject<helium::Array2D>(paramName);
+        if (!array || !array->data()) {
+          std::cout << "[GenericBarneyField] 2D Array '" << paramName << "' is null or has no data, skipping" << std::endl;
+          continue;
+        }
+        
+        auto dims = array->size();
+        auto elemType = array->elementType();
+        
+        std::cout << "[GenericBarneyField] Forwarding 2D array '" << paramName << "' dims: " 
+                  << dims.x << "x" << dims.y << std::endl;
+        
+        BNDataType barneyType;
+        switch (elemType) {
+          case ANARI_FLOAT32: barneyType = BN_FLOAT; break;
+          case ANARI_INT32: barneyType = BN_INT; break;
+          case ANARI_UINT8:
+          case ANARI_UFIXED8: barneyType = BN_UFIXED8; break;
+          default:
+            std::cout << "[GenericBarneyField] Unsupported element type for '" << paramName << "', skipping" << std::endl;
+            continue;
+        }
+        
+        BNTextureData td = bnTextureData2DCreate(context, slot, barneyType,
+                                                  dims.x, dims.y,
+                                                  array->data());
+        bnSetObject(m_bnField, paramName.c_str(), td);
+        bnRelease(td);
+      }
+      else if (paramType == ANARI_ARRAY1D) {
+        auto array = getParamObject<helium::Array1D>(paramName);
+        if (!array || !array->data()) {
+          std::cout << "[GenericBarneyField] 1D Array '" << paramName << "' is null or has no data, skipping" << std::endl;
+          continue;
+        }
+        
+        auto elemType = array->elementType();
+        size_t numElements = array->totalSize();
+        
+        std::cout << "[GenericBarneyField] Forwarding 1D array '" << paramName << "' size: " << numElements << std::endl;
+        
+        BNDataType barneyType;
+        switch (elemType) {
+          case ANARI_FLOAT32: barneyType = BN_FLOAT; break;
+          case ANARI_INT32: barneyType = BN_INT; break;
+          case ANARI_UINT8:
+          case ANARI_UFIXED8: barneyType = BN_UFIXED8; break;
+          default:
+            std::cout << "[GenericBarneyField] Unsupported element type for '" << paramName << "', skipping" << std::endl;
+            continue;
+        }
+        
+        BNData data = bnDataCreate(context, slot, barneyType, numElements, array->data());
+        bnSetObject(m_bnField, paramName.c_str(), data);
+        bnRelease(data);
+      }
+      // Handle scalar parameters
+      else {
+        std::cout << "[GenericBarneyField] Forwarding scalar param '" << paramName << "'" << std::endl;
+        
+        switch (paramType) {
+          case ANARI_FLOAT32:
+            bnSet1f(m_bnField, paramName.c_str(), getParam<float>(paramName, 0.0f));
+            break;
+          case ANARI_FLOAT32_VEC2: {
+            auto val = getParam<math::float2>(paramName, math::float2(0.0f));
+            bnSet2f(m_bnField, paramName.c_str(), val.x, val.y);
+            break;
+          }
+          case ANARI_FLOAT32_VEC3: {
+            auto val = getParam<math::float3>(paramName, math::float3(0.0f));
+            bnSet3f(m_bnField, paramName.c_str(), val.x, val.y, val.z);
+            break;
+          }
+          case ANARI_INT32:
+            bnSet1i(m_bnField, paramName.c_str(), getParam<int>(paramName, 0));
+            break;
+          case ANARI_UINT32:
+            bnSet1i(m_bnField, paramName.c_str(), (int)getParam<uint32_t>(paramName, 0));
+            break;
+          case ANARI_BOOL:
+            bnSet1i(m_bnField, paramName.c_str(), getParam<bool>(paramName, false) ? 1 : 0);
+            break;
+          default:
+            std::cout << "[GenericBarneyField] Unhandled parameter type for '" << paramName << "'" << std::endl;
+            break;
+        }
+      }
+    }
+    
+    // Commit the field with all parameters
+    std::cout << "[GenericBarneyField] Committing field with all parameters" << std::endl;
+    bnCommit(m_bnField);
+    
+    std::cout << "[GenericBarneyField] Parameters applied successfully" << std::endl;
+  }
+
+  BNScalarField GenericBarneyField::createBarneyScalarField() const
+  {
+    int slot = deviceState()->slot;
+    auto context = deviceState()->tether->context;
+    
+    std::cout << "[GenericBarneyField] Creating field of type '" << m_fieldType << "'" << std::endl;
+    
+    // Create a Barney scalar field using the registered type name
+    BNScalarField sf = bnScalarFieldCreate(context, slot, m_fieldType.c_str());
+    
+    if (!sf) {
+      std::cout << "[GenericBarneyField] FAILED to create field of type '" << m_fieldType << "'" << std::endl;
+      reportMessage(ANARI_SEVERITY_WARNING,
+                    "Failed to create Barney scalar field of type '%s' - field type not registered?",
+                    m_fieldType.c_str());
+    } else {
+      std::cout << "[GenericBarneyField] SUCCESS - created field of type '" << m_fieldType << "'" << std::endl;
+      reportMessage(ANARI_SEVERITY_INFO,
+                    "Successfully created Barney scalar field of type '%s'",
+                    m_fieldType.c_str());
+    }
+    
+    return sf;
+  }
+
+  box3 GenericBarneyField::bounds() const
+  {
+    return m_bounds;
+  }
+
+  bool GenericBarneyField::isValid() const
+  {
+    bool valid = !m_fieldType.empty();
+    std::cout << "[GenericBarneyField] isValid() called for type '" << m_fieldType 
+              << "' returning " << (valid ? "TRUE" : "FALSE") << std::endl;
+    return valid;
   }
 
 } // namespace barney_device
