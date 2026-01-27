@@ -45,7 +45,7 @@ namespace barney_device {
     else {
       // Try to create a custom Barney scalar field by type name
       // This supports custom field types registered via ScalarFieldRegistry
-      auto *customField = new GenericBarneyField(s, std::string(subtype));
+      auto *customField = new CustomSpatialField(s, std::string(subtype));
       if (customField->isValid()) {
         return customField;
       }
@@ -617,27 +617,22 @@ namespace barney_device {
     return m_bounds;
   }
 
-  // GenericBarneyField //
+  // CustomSpatialField //
 
-  GenericBarneyField::GenericBarneyField(BarneyGlobalState *s, const std::string &type)
+  CustomSpatialField::CustomSpatialField(BarneyGlobalState *s, const std::string &type)
     : SpatialField(s), m_fieldType(type)
   {
-    // Don't create the field here - let getBarneyScalarField() create it
-    // Just store the type name for later
   }
 
-  void GenericBarneyField::commitParameters()
+  void CustomSpatialField::commitParameters()
   {
     Object::commitParameters();
-    
-    // Don't cache arrays in maps - ChangeObserverPtr doesn't work well in containers
-    // Instead, we'll access them directly via getParamObject in applyParametersToField()
   }
 
-  void GenericBarneyField::finalize()
+  void CustomSpatialField::finalize()
   {
     // Set bounds to a reasonable default sphere
-    float radius = 10.0f;
+    const float radius = 1.0f;
     m_bounds = box3(math::float3(-radius), math::float3(radius));
     
     // Ensure the Barney field is created before applying parameters
@@ -652,13 +647,13 @@ namespace barney_device {
     applyParametersToField();
   }
 
-  void GenericBarneyField::markFinalized()
+  void CustomSpatialField::markFinalized()
   {
     // Call base class to mark scene as changed
     SpatialField::markFinalized();
   }
 
-  void GenericBarneyField::applyParametersToField()
+  void CustomSpatialField::applyParametersToField()
   {
     if (!m_bnField)
     {
@@ -782,7 +777,7 @@ namespace barney_device {
     bnCommit(m_bnField);
   }
 
-  BNScalarField GenericBarneyField::createBarneyScalarField() const
+  BNScalarField CustomSpatialField::createBarneyScalarField() const
   {
     int slot = deviceState()->slot;
     auto context = deviceState()->tether->context;
@@ -803,12 +798,12 @@ namespace barney_device {
     return sf;
   }
 
-  box3 GenericBarneyField::bounds() const
+  box3 CustomSpatialField::bounds() const
   {
     return m_bounds;
   }
 
-  bool GenericBarneyField::isValid() const
+  bool CustomSpatialField::isValid() const
   {
     return !m_fieldType.empty();
   }

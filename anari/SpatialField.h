@@ -174,9 +174,9 @@ namespace barney_device {
 
   // Generic wrapper for custom Barney scalar field types
   // This allows ANARI to use fields registered via ScalarFieldRegistry
-  struct GenericBarneyField : public SpatialField
+  struct CustomSpatialField : public SpatialField
   {
-    GenericBarneyField(BarneyGlobalState *s, const std::string &type);
+    CustomSpatialField(BarneyGlobalState *s, const std::string &type);
     void commitParameters() override;
     void finalize() override;
     void markFinalized() override; // Apply parameters after field is created
