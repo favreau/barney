@@ -22,11 +22,43 @@ namespace rtc {
       // compositing (eg in paraview/ice-t), so let's not do that.
       denoiserOptions.denoiseAlpha
         = OPTIX_DENOISER_ALPHA_MODE_COPY;
-        
+
+      currentUpscaleMode = upscaleMode;
+      OptixDenoiserModelKind modelKind
+        = upscaleMode
+        ? OPTIX_DENOISER_MODEL_KIND_UPSCALE2X
+        : OPTIX_DENOISER_MODEL_KIND_HDR;
+
       OptixDeviceContext optixContext
         = owlContextGetOptixContext(device->owl,0);
       optixDenoiserCreate(optixContext,
-                          OPTIX_DENOISER_MODEL_KIND_HDR,
+                          modelKind,
+                          &denoiserOptions,
+                          &denoiser);
+    }
+
+    void Optix8Denoiser::recreateIfNeeded()
+    {
+      if (currentUpscaleMode == upscaleMode) return;
+
+      SetActiveGPU forDuration(device);
+
+      // destroy the existing OptixDenoiser handle
+      if (denoiser) {
+        optixDenoiserDestroy(denoiser);
+        denoiser = {};
+      }
+
+      currentUpscaleMode = upscaleMode;
+      OptixDenoiserModelKind modelKind
+        = upscaleMode
+        ? OPTIX_DENOISER_MODEL_KIND_UPSCALE2X
+        : OPTIX_DENOISER_MODEL_KIND_HDR;
+
+      OptixDeviceContext optixContext
+        = owlContextGetOptixContext(device->owl,0);
+      optixDenoiserCreate(optixContext,
+                          modelKind,
                           &denoiserOptions,
                           &denoiser);
     }
@@ -46,6 +78,10 @@ namespace rtc {
         BARNEY_CUDA_CALL_NOTHROW(Free(in_rgba));
         in_rgba = 0;
       }
+      if (out_rgba) {
+        BARNEY_CUDA_CALL_NOTHROW(Free(out_rgba));
+        out_rgba = 0;
+      }
       if (in_normal) {
         BARNEY_CUDA_CALL_NOTHROW(Free(in_normal));
         in_normal = 0;
@@ -54,19 +90,21 @@ namespace rtc {
     
     void Optix8Denoiser::resize(vec2i numPixels)
     {
+      // If upscale mode changed, destroy and recreate the denoiser
+      recreateIfNeeded();
+
       this->numPixels = numPixels;
+      // output is 2x input when upscaling, same as input otherwise
+      outputDims = upscaleMode
+        ? vec2i(numPixels.x*2, numPixels.y*2)
+        : numPixels;
       SetActiveGPU forDuration(device);
 
       denoiserSizes.overlapWindowSizeInPixels = 0;
-      optixDenoiserComputeMemoryResources(/*const OptixDenoiser */
-                                          denoiser,
-                                          // unsigned int        outputWidth,
-                                          numPixels.x,
-                                          // unsigned int        outputHeight,
-                                          numPixels.y,
-                                          // OptixDenoiserSizes* returnSizes
-                                          &denoiserSizes
-                                          );
+      // "Image to be denoised" = input for UPSCALE2X (low-res); output for standard denoise.
+      unsigned int memW = upscaleMode ? (unsigned int)numPixels.x : (unsigned int)outputDims.x;
+      unsigned int memH = upscaleMode ? (unsigned int)numPixels.y : (unsigned int)outputDims.y;
+      optixDenoiserComputeMemoryResources(denoiser, memW, memH, &denoiserSizes);
       // --------------------------------------------
       if (denoiserScratch) {
         BARNEY_CUDA_CALL(Free(denoiserScratch));
@@ -82,21 +120,21 @@ namespace rtc {
       }
       BARNEY_CUDA_CALL(Malloc(&denoiserState,
                               denoiserSizes.stateSizeInBytes));
-      // --------------------------------------------
+      // --- input buffers at render resolution ---
       if (in_rgba) {
         BARNEY_CUDA_CALL(Free(in_rgba));
         in_rgba = 0;
       }
       BARNEY_CUDA_CALL(Malloc(&in_rgba,
                               numPixels.x*numPixels.y*sizeof(*in_rgba)));
-      // --------------------------------------------
+      // --- output buffer at output (possibly 2x) resolution ---
       if (out_rgba) {
         BARNEY_CUDA_CALL(Free(out_rgba));
         out_rgba = 0;
       }
       BARNEY_CUDA_CALL(Malloc(&out_rgba,
-                              numPixels.x*numPixels.y*sizeof(*out_rgba)));
-      // --------------------------------------------
+                              outputDims.x*outputDims.y*sizeof(*out_rgba)));
+      // --- normal guide at render resolution ---
       if (in_normal) {
         BARNEY_CUDA_CALL(Free(in_normal));
         in_normal = 0;
@@ -105,6 +143,10 @@ namespace rtc {
                               numPixels.x*numPixels.y*sizeof(*in_normal)));
       // --------------------------------------------
       
+      // Setup takes INPUT dimensions (max input layer size). For UPSCALE2X
+      // the denoiser then produces 2x output; if we passed output dims here
+      // it would treat input as that size and produce 4x, and we'd only read
+      // the top-left quarter.
       optixDenoiserSetup(// OptixDenoiser denoiser,
                          denoiser,
                          // CUstream      stream,
@@ -129,6 +171,7 @@ namespace rtc {
       SetActiveGPU forDuration(device);
       OptixDenoiserLayer layer = {};
       
+      // --- input at render resolution ---
       layer.input.format = OPTIX_PIXEL_FORMAT_FLOAT4;
       layer.input.rowStrideInBytes = numPixels.x*sizeof(vec4f);
       layer.input.pixelStrideInBytes = sizeof(vec4f);
@@ -136,6 +179,7 @@ namespace rtc {
       layer.input.height = numPixels.y;
       layer.input.data   = (CUdeviceptr)in_rgba;
       
+      // --- normal guide at render resolution ---
       OptixDenoiserGuideLayer guideLayer = {};
       guideLayer.normal.format = OPTIX_PIXEL_FORMAT_FLOAT3;
       guideLayer.normal.rowStrideInBytes = numPixels.x*sizeof(vec3f);
@@ -144,7 +188,12 @@ namespace rtc {
       guideLayer.normal.height = numPixels.y;
       guideLayer.normal.data = (CUdeviceptr)in_normal;
       
-      layer.output = layer.input;
+      // --- output at outputDims (render res or 2x when upscaling) ---
+      layer.output.format = OPTIX_PIXEL_FORMAT_FLOAT4;
+      layer.output.rowStrideInBytes = outputDims.x*sizeof(vec4f);
+      layer.output.pixelStrideInBytes = sizeof(vec4f);
+      layer.output.width  = outputDims.x;
+      layer.output.height = outputDims.y;
       layer.output.data = (CUdeviceptr)out_rgba;
 
       OptixDenoiserParams denoiserParams = {};

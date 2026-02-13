@@ -79,7 +79,9 @@ namespace barney_device {
     m_channelTypes.normal =
       getParam<anari::DataType>("channel.normal", ANARI_UNKNOWN);
     m_size = getParam<math::uint2>("size", math::uint2(10, 10));
+    m_displaySize = m_size;  /* updated in finalize() from actual FB when slot==0 */
     m_enableDenoising = getParam<int>("enableDenoising", 0);
+    m_enableUpscaling = getParam<int>("enableUpscaling", 0);
   }
 
   void Frame::finalize()
@@ -123,6 +125,7 @@ namespace barney_device {
 
       if (m_bnFrameBuffer) {
         bnSet1i(m_bnFrameBuffer, "enableDenoising", denoise);
+        bnSet1i(m_bnFrameBuffer, "enableUpscaling", m_enableUpscaling);
         bnCommit(m_bnFrameBuffer);
 
         bnFrameBufferResize(m_bnFrameBuffer,
@@ -130,7 +133,15 @@ namespace barney_device {
                             size.x,
                             size.y,
                             requiredChannels);
+        int actualW = 0, actualH = 0;
+        bnFrameBufferGetSize(m_bnFrameBuffer, &actualW, &actualH);
+        m_displaySize.x = static_cast<uint32_t>(actualW);
+        m_displaySize.y = static_cast<uint32_t>(actualH);
+      } else {
+        m_displaySize = m_size;
       }
+    } else {
+      m_displaySize = m_size;
     }
   }
 
