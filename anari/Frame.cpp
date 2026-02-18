@@ -80,7 +80,7 @@ namespace barney_device {
       getParam<anari::DataType>("channel.normal", ANARI_UNKNOWN);
     m_size = getParam<math::uint2>("size", math::uint2(10, 10));
     m_displaySize = m_size;  /* updated in finalize() from actual FB when slot==0 */
-    m_enableDenoising = getParam<int>("enableDenoising", 0);
+    m_enableDenoising = getParam<int>("enableDenoising", 1);
     m_enableUpscaling = getParam<int>("enableUpscaling", 0);
   }
 
@@ -89,12 +89,11 @@ namespace barney_device {
     cleanup();
 
     bool denoise = m_enableDenoising;
-
-    if (!m_renderer) {
+    if (m_renderer) {
+      denoise = denoise || m_renderer->denoise();
+    } else {
       reportMessage(ANARI_SEVERITY_WARNING,
                     "missing required parameter 'renderer' on frame");
-    } else {
-      denoise |= m_renderer->denoise();
     }
 
     if (!m_camera) {
