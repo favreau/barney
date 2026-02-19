@@ -21,7 +21,7 @@ namespace BARNEY_NS {
       isOwner(isOwner),
       devices(devices)
   {
-    if (FromEnv::get()->explicitlyDisabled("denoising")) {
+    if (FromEnv::get()->explicitlyDisabled("denoise")) {
       if (context->myRank() == 0)
         std::cout << "#bn: denoising explicitly disabled in env-config." << std::endl;
       enableDenoising = false;
@@ -55,11 +55,8 @@ namespace BARNEY_NS {
       showCrosshairs = value;
       return true;
     }
-    if (member == "enableDenoising") {
+    if (member == "denoise") {
       enableDenoising = value;
-      return true;
-    }
-    if (member == "enableUpscaling") {
       enableUpscaling = value;
       return true;
     }
