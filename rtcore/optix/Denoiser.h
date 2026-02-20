@@ -52,6 +52,11 @@ namespace rtc {
           know when to destroy + recreate */
       bool currentUpscaleMode = false;
 
+      /*! set to false when denoiser creation or weight loading fails
+          (e.g. missing/incompatible nvoptix.bin); resize() and run()
+          become no-ops so the renderer can proceed without denoising */
+      bool available = true;
+
       /*! destroy and recreate the OptixDenoiser if upscaleMode
           changed since the last call */
       void recreateIfNeeded();

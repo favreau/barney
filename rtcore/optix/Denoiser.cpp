@@ -6,6 +6,7 @@
 #include <optix.h>
 // #include <optix_function_table.h>
 #include <optix_stubs.h>
+#include <iostream>
 
 namespace rtc {
   namespace optix {
@@ -31,14 +32,21 @@ namespace rtc {
 
       OptixDeviceContext optixContext
         = owlContextGetOptixContext(device->owl,0);
-      optixDenoiserCreate(optixContext,
+      OptixResult res = optixDenoiserCreate(optixContext,
                           modelKind,
                           &denoiserOptions,
                           &denoiser);
+      if (res != OPTIX_SUCCESS) {
+        std::cerr << "[barney] OptiX denoiser creation failed (code "
+                  << (int)res << "); denoiser disabled." << std::endl;
+        denoiser = {};
+        available = false;
+      }
     }
 
     void Optix8Denoiser::recreateIfNeeded()
     {
+      if (!available) return;
       if (currentUpscaleMode == upscaleMode) return;
 
       SetActiveGPU forDuration(device);
@@ -57,10 +65,16 @@ namespace rtc {
 
       OptixDeviceContext optixContext
         = owlContextGetOptixContext(device->owl,0);
-      optixDenoiserCreate(optixContext,
+      OptixResult res = optixDenoiserCreate(optixContext,
                           modelKind,
                           &denoiserOptions,
                           &denoiser);
+      if (res != OPTIX_SUCCESS) {
+        std::cerr << "[barney] OptiX denoiser re-creation failed (code "
+                  << (int)res << "); denoiser disabled." << std::endl;
+        denoiser = {};
+        available = false;
+      }
     }
     
     Optix8Denoiser::~Optix8Denoiser()
@@ -98,13 +112,22 @@ namespace rtc {
       outputDims = upscaleMode
         ? vec2i(numPixels.x*2, numPixels.y*2)
         : numPixels;
+
+      if (!available) return;
+
       SetActiveGPU forDuration(device);
 
       denoiserSizes.overlapWindowSizeInPixels = 0;
       // "Image to be denoised" = input for UPSCALE2X (low-res); output for standard denoise.
       unsigned int memW = upscaleMode ? (unsigned int)numPixels.x : (unsigned int)outputDims.x;
       unsigned int memH = upscaleMode ? (unsigned int)numPixels.y : (unsigned int)outputDims.y;
-      optixDenoiserComputeMemoryResources(denoiser, memW, memH, &denoiserSizes);
+      OptixResult res = optixDenoiserComputeMemoryResources(denoiser, memW, memH, &denoiserSizes);
+      if (res != OPTIX_SUCCESS) {
+        std::cerr << "[barney] optixDenoiserComputeMemoryResources failed (code "
+                  << (int)res << "); denoiser disabled." << std::endl;
+        available = false;
+        return;
+      }
       // --------------------------------------------
       if (denoiserScratch) {
         BARNEY_CUDA_CALL(Free(denoiserScratch));
@@ -147,27 +170,26 @@ namespace rtc {
       // the denoiser then produces 2x output; if we passed output dims here
       // it would treat input as that size and produce 4x, and we'd only read
       // the top-left quarter.
-      optixDenoiserSetup(// OptixDenoiser denoiser,
-                         denoiser,
-                         // CUstream      stream,
-                         0,//device->launchStream,
-                         // unsigned int  inputWidth,
+      res = optixDenoiserSetup(denoiser,
+                         0,
                          numPixels.x,
-                         // unsigned int  inputHeight,
                          numPixels.y,
-                         // CUdeviceptr   denoiserState,
                          (CUdeviceptr)denoiserState,
-                         // size_t        denoiserStateSizeInBytes,
                          denoiserSizes.stateSizeInBytes,
-                         // CUdeviceptr   scratch,
                          (CUdeviceptr)denoiserScratch,
-                         //size_t        scratchSizeInBytes
                          denoiserSizes.withoutOverlapScratchSizeInBytes
                          );
+      if (res != OPTIX_SUCCESS) {
+        std::cerr << "[barney] optixDenoiserSetup failed (code "
+                  << (int)res << "); denoiser disabled." << std::endl;
+        available = false;
+        return;
+      }
     }
     
     void Optix8Denoiser::run(float blendFactor)
     {
+      if (!available) return;
       SetActiveGPU forDuration(device);
       OptixDenoiserLayer layer = {};
       
@@ -203,9 +225,8 @@ namespace rtc {
       /// the unmodified input. Values between 0 and 1 will linearly interpolate between the denoised
       /// and unmodified input.
       denoiserParams.blendFactor      = blendFactor;
-      // iw - this should at some point use the stream used for rendering/copy pixels
       cudaStream_t denoiserStream = 0;
-      optixDenoiserInvoke
+      OptixResult res = optixDenoiserInvoke
         (
          denoiser,
          denoiserStream,
@@ -220,6 +241,12 @@ namespace rtc {
          (CUdeviceptr)denoiserScratch,
          denoiserSizes.withoutOverlapScratchSizeInBytes
          );
+      if (res != OPTIX_SUCCESS) {
+        std::cerr << "[barney] optixDenoiserInvoke failed (code "
+                  << (int)res << "); denoiser disabled." << std::endl;
+        available = false;
+        return;
+      }
       cudaStreamSynchronize(denoiserStream);
     }
     
