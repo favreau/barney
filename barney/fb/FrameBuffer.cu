@@ -180,6 +180,14 @@ namespace BARNEY_NS {
 
   void FrameBuffer::finalizeFrame()
   {
+    // Ensure all devices have finished rendering before gathering tiles.
+    // Otherwise cross-device copyAsync in gatherColorChannel can read
+    // incomplete tile data, causing broken or shifted tiles (especially
+    // with denoising). CUDA_LAUNCH_BLOCKING=1 masked this by serializing
+    // launches so work completed before the next device was touched.
+    for (auto d : *devices)
+      d->sync();
+
     Device *device = getDenoiserDevice();
     SetActiveGPU forDuration(device);
 
