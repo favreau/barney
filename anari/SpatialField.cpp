@@ -631,11 +631,9 @@ namespace barney_device {
 
   void CustomSpatialField::finalize()
   {
-    // Set bounds to a reasonable default sphere
     const float radius = 1.0f;
     m_bounds = box3(math::float3(-radius), math::float3(radius));
     
-    // Ensure the Barney field is created before applying parameters
     if (!m_bnField) {
       m_bnField = createBarneyScalarField();
       if (!m_bnField) {
@@ -643,7 +641,6 @@ namespace barney_device {
       }
     }
     
-    // Apply parameters to the Barney field
     applyParametersToField();
   }
 
@@ -663,17 +660,18 @@ namespace barney_device {
     int slot = deviceState()->slot;
     auto context = deviceState()->tether->context;
     
-    // Iterate over all parameters and forward them to Barney
+    bool anyChanged = false;
+
     for (auto it = params_begin(); it != params_end(); ++it) {
       const std::string& paramName = it->first;
       ANARIDataType paramType = it->second.type();
       
-      // Handle array parameters
       if (paramType == ANARI_ARRAY3D) {
         auto array = getParamObject<helium::Array3D>(paramName);
-        if (!array || !array->data()) {
+        if (!array || !array->data()) continue;
+        if (m_appliedArrays.count(paramName) && m_appliedArrays[paramName] == array->data())
           continue;
-        }
+        m_appliedArrays[paramName] = array->data();
         
         auto dims = array->size();
         auto elemType = array->elementType();
@@ -693,12 +691,14 @@ namespace barney_device {
                                                   array->data());
         bnSetObject(m_bnField, paramName.c_str(), td);
         bnRelease(td);
+        anyChanged = true;
       }
       else if (paramType == ANARI_ARRAY2D) {
         auto array = getParamObject<helium::Array2D>(paramName);
-        if (!array || !array->data()) {
+        if (!array || !array->data()) continue;
+        if (m_appliedArrays.count(paramName) && m_appliedArrays[paramName] == array->data())
           continue;
-        }
+        m_appliedArrays[paramName] = array->data();
         
         auto dims = array->size();
         auto elemType = array->elementType();
@@ -718,12 +718,14 @@ namespace barney_device {
                                                   array->data());
         bnSetObject(m_bnField, paramName.c_str(), td);
         bnRelease(td);
+        anyChanged = true;
       }
       else if (paramType == ANARI_ARRAY1D) {
         auto array = getParamObject<helium::Array1D>(paramName);
-        if (!array || !array->data()) {
+        if (!array || !array->data()) continue;
+        if (m_appliedArrays.count(paramName) && m_appliedArrays[paramName] == array->data())
           continue;
-        }
+        m_appliedArrays[paramName] = array->data();
         
         auto elemType = array->elementType();
         size_t numElements = array->totalSize();
@@ -741,8 +743,8 @@ namespace barney_device {
         BNData data = bnDataCreate(context, slot, barneyType, numElements, array->data());
         bnSetObject(m_bnField, paramName.c_str(), data);
         bnRelease(data);
+        anyChanged = true;
       }
-      // Handle scalar parameters
       else {
         switch (paramType) {
           case ANARI_FLOAT32:

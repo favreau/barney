@@ -133,6 +133,12 @@ namespace BARNEY_NS {
     }
   }
 
+  Texture::~Texture()
+  {
+    for (auto device : *devices)
+      device->rtc->freeTexture(getPLD(device)->rtcTexture);
+  }
+
   TextureData::~TextureData()
   {
     for (auto device : *devices)

@@ -10,6 +10,8 @@
 #include "helium/array/ObjectArray.h"
 // ours
 #include "Object.h"
+// std
+#include <map>
 
 namespace barney_device {
 
@@ -179,17 +181,18 @@ namespace barney_device {
     CustomSpatialField(BarneyGlobalState *s, const std::string &type);
     void commitParameters() override;
     void finalize() override;
-    void markFinalized() override; // Apply parameters after field is created
+    void markFinalized() override;
 
     BNScalarField createBarneyScalarField() const override;
 
     box3 bounds() const override;
     bool isValid() const override;
 
-    void applyParametersToField(); // Apply collected parameters to the Barney field
+    void applyParametersToField();
 
     std::string m_fieldType;
     box3 m_bounds;
+    std::map<std::string, const void *> m_appliedArrays;
   };
 
 } // namespace barney_device
