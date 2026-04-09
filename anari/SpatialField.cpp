@@ -760,6 +760,11 @@ namespace barney_device {
             bnSet3f(m_bnField, paramName.c_str(), val.x, val.y, val.z);
             break;
           }
+          case ANARI_FLOAT32_VEC4: {
+            auto val = getParam<math::float4>(paramName, math::float4(0.0f));
+            bnSet4f(m_bnField, paramName.c_str(), val.x, val.y, val.z, val.w);
+            break;
+          }
           case ANARI_INT32:
             bnSet1i(m_bnField, paramName.c_str(), getParam<int>(paramName, 0));
             break;

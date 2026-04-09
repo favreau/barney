@@ -49,6 +49,7 @@ namespace barney_device {
   {
     m_id = getParam<uint32_t>("id", ~0u);
     m_visible = getParam<bool>("visible", true);
+    m_emissive = getParam<bool>("emissive", false);
   }
 
   bool Volume::isVisible() const
@@ -171,6 +172,7 @@ namespace barney_device {
       return;
     BNVolume vol = getBarneyVolume();
     bnSet1i(vol,"userID",m_id);
+    bnSet1i(vol,"emissive",m_emissive ? 1 : 0);
     bnVolumeSetXF(vol,
                   (bn_float2 &)m_valueRange,
                   (const bn_float4 *)m_rgbaMap.data(),

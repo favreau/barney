@@ -22,13 +22,17 @@ namespace BARNEY_NS {
   }
 
   bool Volume::set1i(const std::string &member,
-                     const int   &value) 
+                     const int   &value)
   {
     if (member == "userID") {
       userID = value;
-      return true; 
-    } 
-    
+      return true;
+    }
+    if (member == "emissive") {
+      emissive = (value != 0);
+      return true;
+    }
+
     return false;
   }
   

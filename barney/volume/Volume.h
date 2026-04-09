@@ -65,6 +65,7 @@ namespace BARNEY_NS {
       typename SFSampler::DD sfSampler;
       TransferFunction::DD   xf;
       int                    userID;
+      bool                   emissive;
     };
     
     template<typename SFSampler>
@@ -75,6 +76,7 @@ namespace BARNEY_NS {
       dd.sfSampler = sampler->getDD(device);
       dd.xf = xf.getDD(device);
       dd.userID = userID;
+      dd.emissive = emissive;
       return dd;
     }
 
@@ -107,6 +109,7 @@ namespace BARNEY_NS {
     TransferFunction xf;
     DevGroup::SP const devices;
     int userID = 0;
+    bool emissive = false;
     
     struct PLD {
       std::vector<rtc::Group *> generatedGroups;

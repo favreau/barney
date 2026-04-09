@@ -502,6 +502,10 @@ namespace BARNEY_NS {
     const render::World::DD &world = render::OptixGlobals::get(ti).world;
     // ray in world space
     Ray &ray = *(Ray*)ti.getPRD();
+
+    if (self.volume.emissive && ray.isShadowRay)
+      return;
+
 #ifdef NDEBUG
     enum { dbg = false };
 #else
@@ -568,7 +572,8 @@ namespace BARNEY_NS {
                 vec3f P = ti.transformPointFromObjectToWorldSpace(P_obj);
                 ray.setVolumeHit(P,
                                  tRange.upper,
-                                 getPos(sample));
+                                 getPos(sample),
+                                 self.volume.emissive);
 
                 // Write hit IDs for AOV channels on first non-transparent voxel
                 const render::OptixGlobals &globals = render::OptixGlobals::get(ti);

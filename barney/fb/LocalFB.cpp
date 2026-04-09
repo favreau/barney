@@ -67,6 +67,8 @@ namespace BARNEY_NS {
       tfb->linearizeColorAndNormal
         (linearColor,gatherType,linearNormal,accumScale);
     }
+    for (auto device : *devices)
+      device->sync();
   }
 
   /*! read one of the auxiliary (not color or normal) buffers into
@@ -84,6 +86,8 @@ namespace BARNEY_NS {
   {
     for (auto device : *devices)
       getFor(device)->linearizeAuxChannel(stagingArea,whichChannel);
+    for (auto device : *devices)
+      device->sync();
   }
   
 } // ::BARNEY_NS

@@ -49,14 +49,14 @@ namespace BARNEY_NS {
     
     struct Ray {
 #if RTC_DEVICE_CODE
-      inline __rtc_device void setVolumeHit(vec3f P, float t, vec3f albedo);
+      inline __rtc_device void setVolumeHit(vec3f P, float t, vec3f albedo, bool emissive = false);
       inline __rtc_device PackedBSDF getBSDF() const;
       inline __rtc_device void setHit(vec3f P, vec3f N, float t,
                                     const PackedBSDF &packedBSDF);
       
       inline __rtc_device bool hadHit() const { return bsdfType != PackedBSDF::NONE; }
       inline __rtc_device void clearHit(float newTMax = BARNEY_INF)
-      { bsdfType = PackedBSDF::NONE; tMax = newTMax; }
+      { bsdfType = PackedBSDF::NONE; tMax = newTMax; isEmissiveHit = 0; }
       
       inline __rtc_device void packNormal(vec3f N);
       inline __rtc_device vec3f unpackNormal() const;
@@ -85,6 +85,7 @@ namespace BARNEY_NS {
         uint16_t isShadowRay: 1;
         uint16_t crosshair  : 1;
         uint16_t _dbg       : 1;
+        uint16_t isEmissiveHit : 1;
       };
       inline __rtc_device bool dbg() const {
         return _dbg;
@@ -117,14 +118,17 @@ namespace BARNEY_NS {
     
     inline __rtc_device void Ray::setVolumeHit(vec3f P,
                                              float t,
-                                             vec3f albedo)
+                                             vec3f albedo,
+                                             bool emissive)
     {
-      if (this->dbg()) printf("setting volume hit %f %f %f\n",
+      if (this->dbg()) printf("setting volume hit %f %f %f emissive=%i\n",
                             albedo.x,
                             albedo.y,
-                            albedo.z);
+                            albedo.z,
+                            (int)emissive);
       setHit(P,vec3f(0.f),t,
-             packedBSDF::Phase(albedo));
+             packedBSDF::Phase(albedo, emissive ? 1.f : .7f));
+      this->isEmissiveHit = emissive ? 1 : 0;
     }
 
     inline __rtc_device

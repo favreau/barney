@@ -547,6 +547,14 @@ namespace BARNEY_NS {
         ?   Ng
         : - Ng;
 
+      // Emissive volumes: use TF color directly, no shading or shadow casting
+      if (isVolumeHit && ray.isEmissiveHit && !hadNoIntersection) {
+        vec3f albedo = (const vec3f &)ray.hitBSDF.phase.albedo;
+        fragment = (vec3f)incomingThroughput * albedo;
+        ray.tMax = -1.f;
+        return;
+      }
+
       if (hadNoIntersection) {
         // ==================================================================
         // regular ray that did NOT hit ANYTHING 
