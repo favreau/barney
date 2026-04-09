@@ -970,7 +970,7 @@ namespace BARNEY_NS {
       // ==================================================================
 
       // clamping ...
-      float clampMax = 10.f*(1+accumID);
+      float clampMax = 1e20f;
       fragment = min(fragment,vec3f(clampMax));
       
       if (accumID == 0 && generation == 0) {
