@@ -904,8 +904,6 @@ namespace BARNEY_NS {
         ? ray.getN()
         : vec3f(0.f);
 
-      // if (incomingN == vec3f(0.f))
-      //   incomingN = vec3f(1.f,0.f,0.f);
       // what we'll add into the frame buffer
       vec3f fragment = 0.f;
       // create a (potential) shadow ray, and init to 'invalid'

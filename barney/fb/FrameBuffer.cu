@@ -125,13 +125,7 @@ namespace BARNEY_NS {
     if (iy >= numPixels.y) return;
     int idx = ix+numPixels.x*iy;
     vec4f v = in[idx];
-#if 0
     v = saturate(v);
-#else
-    // Reinhard tone mapping: preserves contrast across full HDR range
-    (vec3f&)v = (vec3f&)v / (vec3f(1.f) + (vec3f&)v);
-    v.w = min(v.w, 1.f);
-#endif
     if (SRGB)
       (vec3f&)v = linear_to_srgb((vec3f&)v);
     out[idx] = ::BARNEY_NS::make_rgba(v);
@@ -256,7 +250,7 @@ namespace BARNEY_NS {
 
     bool doDenoising = denoiser != 0 && (enableDenoising || enableUpscaling);
     if (doDenoising) {
-      float blendFactor = fadeOutDenoiser ? (accumID-1) / (accumID+100.f) : 0.f;
+      float blendFactor = (fadeOutDenoiser && !forceFullDenoise) ? (accumID-1) / (accumID+100.f) : 0.f;
       device->rtc->sync();
       denoiser->run(blendFactor);
 

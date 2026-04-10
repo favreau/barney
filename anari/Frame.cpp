@@ -459,7 +459,9 @@ namespace barney_device {
 
   void Frame::discard()
   {
-    // no-op (not yet async)
+    auto *state = deviceState();
+    if (m_bnFrameBuffer && state->slot == 0)
+      bnAccumReset(m_bnFrameBuffer);
   }
 
   bool Frame::ready() const
