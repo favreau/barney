@@ -3,6 +3,7 @@
 
 
 #include "Renderer.h"
+#include <cstring>
 
 namespace barney_device {
 
@@ -46,6 +47,18 @@ bool Renderer::getProperty(const std::string_view &name,
   }
   if (name == "crosshairs" && type == ANARI_BOOL) {
     helium::writeToVoidP(ptr, m_crosshairs);
+    return true;
+  }
+  if (name == "ambientRadiance" && type == ANARI_FLOAT32) {
+    helium::writeToVoidP(ptr, m_ambientRadiance);
+    return true;
+  }
+  if (name == "background" && type == ANARI_FLOAT32_VEC4) {
+    std::memcpy(ptr, &m_background, sizeof(m_background));
+    return true;
+  }
+  if (name == "cutPlane" && type == ANARI_FLOAT32_VEC4) {
+    std::memcpy(ptr, &m_cutPlane, sizeof(m_cutPlane));
     return true;
   }
   return Object::getProperty(name, type, ptr, size, flags);
