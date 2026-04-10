@@ -28,6 +28,29 @@ void Renderer::commitParameters()
   m_cutPlane = getParam<math::float4>("cutPlane", math::float4(0, 0, 0, 0));
 }
 
+bool Renderer::getProperty(const std::string_view &name,
+    ANARIDataType type,
+    void *ptr,
+    uint64_t size,
+    uint32_t flags)
+{
+  (void)size;
+  (void)flags;
+  if (name == "denoise" && type == ANARI_BOOL) {
+    helium::writeToVoidP(ptr, m_denoise);
+    return true;
+  }
+  if (name == "pixelSamples" && type == ANARI_INT32) {
+    helium::writeToVoidP(ptr, m_pixelSamples);
+    return true;
+  }
+  if (name == "crosshairs" && type == ANARI_BOOL) {
+    helium::writeToVoidP(ptr, m_crosshairs);
+    return true;
+  }
+  return Object::getProperty(name, type, ptr, size, flags);
+}
+
 void Renderer::finalize()
 {
   bnSetVec(barneyRenderer, "bgColor", m_background);

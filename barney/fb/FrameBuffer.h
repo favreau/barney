@@ -139,6 +139,11 @@ namespace BARNEY_NS {
         full display resolution. Requires denoiser support. */
     bool enableUpscaling = false;
 
+    /*! when set, readColorChannel uses blendFactor=0 (100 % denoised)
+        regardless of accumID.  Used by the export path to ensure full
+        denoising on high-spp single-shot renders. */
+    bool forceFullDenoise = false;
+
     /*! how many samples per pixels have already been accumulated in
         this frame buffer's accumulation buffer. Note this is counted
         in *samples*, not *frames*. */

@@ -80,8 +80,11 @@ namespace barney_device {
       getParam<anari::DataType>("channel.normal", ANARI_UNKNOWN);
     m_size = getParam<math::uint2>("size", math::uint2(10, 10));
     m_displaySize = m_size;  /* updated in finalize() from actual FB when slot==0 */
-    m_enableDenoising = getParam<bool>("denoise", false);
+    // Default true: match Renderer and barney_device.json; framebuffer denoise
+    // is driven from this flag, not from the renderer object alone.
+    m_enableDenoising = getParam<bool>("denoise", true);
     m_enableUpscaling = getParam<bool>("upscale", false);
+    m_forceFullDenoise = getParam<bool>("forceFullDenoise", false);
   }
 
   void Frame::finalize()
@@ -123,6 +126,7 @@ namespace barney_device {
       if (m_bnFrameBuffer) {
         bnSet1i(m_bnFrameBuffer, "denoise", denoise ? 1 : 0);
         bnSet1i(m_bnFrameBuffer, "upscale", m_enableUpscaling ? 1 : 0);
+        bnSet1i(m_bnFrameBuffer, "forceFullDenoise", m_forceFullDenoise ? 1 : 0);
         bnCommit(m_bnFrameBuffer);
 
         bnFrameBufferResize(m_bnFrameBuffer,

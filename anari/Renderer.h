@@ -17,6 +17,12 @@ namespace barney_device {
     void commitParameters() override;
     void finalize() override;
 
+    bool getProperty(const std::string_view &name,
+        ANARIDataType type,
+        void *ptr,
+        uint64_t size,
+        uint32_t flags) override;
+
     bool crosshairs() const;
     bool denoise() const;
     bool isValid() const override;

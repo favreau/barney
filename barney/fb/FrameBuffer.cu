@@ -63,6 +63,10 @@ namespace BARNEY_NS {
       enableUpscaling = value;
       return true;
     }
+    if (member == "forceFullDenoise") {
+      forceFullDenoise = value;
+      return true;
+    }
     return false;
   }
 
@@ -245,11 +249,9 @@ namespace BARNEY_NS {
 
     bool doDenoising = denoiser != 0 && (enableDenoising || enableUpscaling);
     if (doDenoising) {
-#if 0
-      float blendFactor = (accumID-1) / (accumID+100.f);
-#else
-      float blendFactor = (accumID-1) / (accumID+10.f);
-#endif
+      float blendFactor = forceFullDenoise
+        ? 0.f
+        : (accumID-1) / (accumID+10.f);
       device->rtc->sync();
       denoiser->run(blendFactor);
 
