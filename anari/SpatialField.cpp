@@ -27,7 +27,10 @@ namespace barney_device {
     : Object(ANARI_SPATIAL_FIELD, s)
   {}
 
-  SpatialField::~SpatialField() = default;
+  SpatialField::~SpatialField()
+  {
+    cleanup();
+  }
 
   SpatialField *SpatialField::createInstance(std::string_view subtype,
                                              BarneyGlobalState *s)
@@ -226,7 +229,7 @@ namespace barney_device {
                              gridHandle.data());
     assert(bd);
     assert(sf);
-    bnSetData(sf,"data",bd);
+    bnSetAndRelease(sf,"data",bd);
     bnCommit(sf);
   }
 
@@ -254,6 +257,15 @@ namespace barney_device {
 
   UnstructuredField::UnstructuredField(BarneyGlobalState *s)
     : SpatialField(s), m_params(this) {}
+
+  UnstructuredField::~UnstructuredField()
+  {
+    if (m_bnData.vertices)       bnRelease(m_bnData.vertices);
+    if (m_bnData.scalars)        bnRelease(m_bnData.scalars);
+    if (m_bnData.indices)        bnRelease(m_bnData.indices);
+    if (m_bnData.cellType)       bnRelease(m_bnData.cellType);
+    if (m_bnData.elementOffsets) bnRelease(m_bnData.elementOffsets);
+  }
 
   void UnstructuredField::commitParameters()
   {
@@ -375,15 +387,16 @@ namespace barney_device {
     BNScalarField sf = getBarneyScalarField();
 
     if (!m_bnData.vertices) {
-      m_bnData.vertices =
-        bnDataCreate(context, slot, BN_FLOAT3, numVertices, vertexPositions);
+      m_bnData.vertices
+        = bnDataCreate(context, slot, BN_FLOAT3, numVertices, vertexPositions);
     } else {
       bnDataSet(m_bnData.vertices, numVertices, vertexPositions);
     }
-
+    
     if (!m_bnData.scalars) {
-      m_bnData.scalars = bnDataCreate(
-                                      context, slot, BN_FLOAT, numScalars, vertexData ? vertexData : cellData);
+      m_bnData.scalars
+        = bnDataCreate(context, slot, BN_FLOAT, numScalars,
+                       vertexData ? vertexData : cellData);
     } else {
       bnDataSet(m_bnData.scalars, numScalars, vertexData ? vertexData : cellData);
     }
@@ -395,9 +408,10 @@ namespace barney_device {
                                       m_params.index->size(),
                                       (const int *)m_params.index->data());
     } else {
-      bnDataSet(m_bnData.indices, m_params.index->size(), (const int *)m_params.index->data());
+      bnDataSet(m_bnData.indices, m_params.index->size(),
+                (const int *)m_params.index->data());
     }
-
+    
     if (!m_bnData.cellType) {
       m_bnData.cellType = bnDataCreate(context,
                                        slot,
@@ -405,7 +419,8 @@ namespace barney_device {
                                        m_params.cellType->size(),
                                        (const int *)m_params.cellType->data());
     } else {
-      bnDataSet(m_bnData.cellType, m_params.cellType->size(), (const int *)m_params.cellType->data());
+      bnDataSet(m_bnData.cellType, m_params.cellType->size(),
+                (const int *)m_params.cellType->data());
     }
 
     if (!m_bnData.elementOffsets) {
@@ -415,7 +430,8 @@ namespace barney_device {
                                              m_params.cellBegin->size(),
                                              (const int *)m_params.cellBegin->data());
     } else {
-      bnDataSet(m_bnData.elementOffsets, m_params.cellBegin->size(), (const int *)m_params.cellBegin->data());
+      bnDataSet(m_bnData.elementOffsets, m_params.cellBegin->size(),
+                (const int *)m_params.cellBegin->data());
     }
 
     bnSetData(sf, "vertex.position", m_bnData.vertices);
@@ -457,6 +473,16 @@ namespace barney_device {
   BlockStructuredField::BlockStructuredField(BarneyGlobalState *s)
     : SpatialField(s), m_params(this)
   {}
+
+  BlockStructuredField::~BlockStructuredField()
+  {
+    if (m_bnData.scalars)          bnRelease(m_bnData.scalars);
+    if (m_bnData.blockOrigins)     bnRelease(m_bnData.blockOrigins);
+    if (m_bnData.blockDims)        bnRelease(m_bnData.blockDims);
+    if (m_bnData.blockLevels)      bnRelease(m_bnData.blockLevels);
+    if (m_bnData.blockOffsets)     bnRelease(m_bnData.blockOffsets);
+    if (m_bnData.levelRefinements) bnRelease(m_bnData.levelRefinements);
+  }
 
   void BlockStructuredField::commitParameters()
   {

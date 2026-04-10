@@ -10,7 +10,10 @@ namespace barney_device {
 
   Volume::Volume(BarneyGlobalState *s) : Object(ANARI_VOLUME, s) {}
 
-  Volume::~Volume() = default;
+  Volume::~Volume()
+  {
+    cleanup();
+  }
 
   Volume *Volume::createInstance(std::string_view subtype, BarneyGlobalState *s)
   {
@@ -80,6 +83,8 @@ namespace barney_device {
     m_opacityData = getParamObject<helium::Array1D>("opacity");
     m_uniformOpacity = getParam<float>("opacity", 1.f) * m_uniformColor.w;
     m_unitDistance = getParam<float>("unitDistance", 1.f);
+
+    invalidateBarneyVolumeIfFieldChanged();
   }
 
   void TransferFunction1D::finalize()
@@ -156,9 +161,14 @@ namespace barney_device {
     int slot = deviceState()->slot;
     auto context = deviceState()->tether->context;
 
-    return m_field
+    BNVolume volume = m_field
       ? bnVolumeCreate(context, slot, m_field->getBarneyScalarField())
       : BNVolume{};
+
+    if (volume)
+      m_boundField = m_field.get();
+
+    return volume;
   }
 
   box3 TransferFunction1D::bounds() const
@@ -179,6 +189,16 @@ namespace barney_device {
                   (int)m_rgbaMap.size(),
                   m_densityScale);
     bnCommit(vol);
+  }
+
+  void TransferFunction1D::invalidateBarneyVolumeIfFieldChanged()
+  {
+    const SpatialField *newField = m_field.get();
+    if (m_boundField == newField)
+      return;
+
+    cleanup();
+    m_boundField = nullptr;
   }
 
 } // namespace barney_device

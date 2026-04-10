@@ -112,7 +112,7 @@ namespace barney_device {
       const auto numPixels = size.x * size.y;
 
       uint32_t requiredChannels = BN_FB_COLOR;
-      if (m_channelTypes.depth == ANARI_FLOAT32) 
+      if (m_channelTypes.depth == ANARI_FLOAT32)
         requiredChannels |= BN_FB_DEPTH;
       if (m_channelTypes.primID == ANARI_UINT32)
         requiredChannels |= BN_FB_PRIMID;
@@ -195,7 +195,7 @@ namespace barney_device {
     }
 
     auto model = m_world->makeCurrent();
-    
+
     if (m_lastFrameWasFirstFrame && m_channelTypes.depth != ANARI_UNKNOWN
         && !m_didMapChannel.depth)
       reportMessage(ANARI_SEVERITY_PERFORMANCE_WARNING,
@@ -479,6 +479,12 @@ namespace barney_device {
 
     delete[] m_channelBuffers.primID;
     m_channelBuffers.primID = nullptr;
+
+    delete[] m_channelBuffers.instID;
+    m_channelBuffers.instID = nullptr;
+
+    delete[] m_channelBuffers.objID;
+    m_channelBuffers.objID = nullptr;
 
     delete[] m_channelBuffers.normal;
     m_channelBuffers.normal = nullptr;
