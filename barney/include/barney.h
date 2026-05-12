@@ -95,7 +95,8 @@ typedef enum {
   BN_FB_PRIMID = (1<<2),
   BN_FB_INSTID = (1<<3),
   BN_FB_OBJID  = (1<<4),
-  BN_FB_NORMAL = (1<<5),
+  BN_FB_NORMAL  = (1<<5),
+  BN_FB_ALBEDO  = (1<<6),
 } BNFrameBufferChannel;
 
 typedef enum {

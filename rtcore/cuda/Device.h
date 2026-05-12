@@ -80,6 +80,7 @@ namespace rtc {
       vec4f *in_rgba = 0;
       vec4f *out_rgba = 0;
       vec3f *in_normal = 0;
+      vec3f *in_albedo = 0;
 
       bool upscaleMode = false;
       vec2i outputDims = {0,0};

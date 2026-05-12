@@ -104,6 +104,10 @@ namespace rtc {
         BARNEY_CUDA_CALL_NOTHROW(Free(in_normal));
         in_normal = 0;
       }
+      if (in_albedo) {
+        BARNEY_CUDA_CALL_NOTHROW(Free(in_albedo));
+        in_albedo = 0;
+      }
       if (out_rgba) {
         BARNEY_CUDA_CALL_NOTHROW(Free(out_rgba));
         out_rgba = 0;
@@ -172,6 +176,13 @@ namespace rtc {
       }
       BARNEY_CUDA_CALL(Malloc(&in_normal,
                               numPixels.x*numPixels.y*sizeof(*in_normal)));
+      // --- albedo guide at render resolution ---
+      if (in_albedo) {
+        BARNEY_CUDA_CALL(Free(in_albedo));
+        in_albedo = 0;
+      }
+      BARNEY_CUDA_CALL(Malloc(&in_albedo,
+                              numPixels.x*numPixels.y*sizeof(*in_albedo)));
       // --------------------------------------------
       
       // Setup takes INPUT dimensions (max input layer size). For UPSCALE2X
@@ -209,7 +220,7 @@ namespace rtc {
       layer.input.height = numPixels.y;
       layer.input.data   = (CUdeviceptr)in_rgba;
       
-      // --- normal guide at render resolution ---
+      // --- guide layers at render resolution ---
       OptixDenoiserGuideLayer guideLayer = {};
       guideLayer.normal.format = OPTIX_PIXEL_FORMAT_FLOAT3;
       guideLayer.normal.rowStrideInBytes = numPixels.x*sizeof(vec3f);
@@ -217,6 +228,10 @@ namespace rtc {
       guideLayer.normal.width  = numPixels.x;
       guideLayer.normal.height = numPixels.y;
       guideLayer.normal.data = (CUdeviceptr)in_normal;
+      // guideAlbedo is disabled at creation time (guideAlbedo=0): passing albedo
+      // data here would mismatch the denoiser options and cause an OptiX error.
+      // The in_albedo buffer is allocated so FrameBuffer can expose BN_FB_ALBEDO
+      // for export (e.g. export_frame), but it is not fed to the live denoiser.
       
       // --- output at outputDims (render res or 2x when upscaling) ---
       layer.output.format = OPTIX_PIXEL_FORMAT_FLOAT4;

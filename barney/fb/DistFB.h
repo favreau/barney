@@ -49,6 +49,32 @@ namespace BARNEY_NS {
   struct CompressedNormalTile {
     CompressedNormal normal[pixelsPerTile];
   };
+
+  /*! Compressed albedo tile: same int8 per-component encoding as
+      CompressedNormal but without the normalization step (albedo
+      components live in [0,1] and should not be renormalized). */
+  struct CompressedAlbedo {
+    inline __both__ void set(vec3f v) {
+      x = encode(v.x); y = encode(v.y); z = encode(v.z);
+    }
+    inline __both__ vec3f get3f() const {
+      return vec3f(decode(x), decode(y), decode(z));
+    }
+  private:
+    inline __both__ int8_t encode(float f) const {
+      f = clamp(f * 128.f, -127.f, 127.f);
+      return int8_t(f);
+    }
+    inline __both__ float decode(int8_t i) const {
+      if (i == 0) return 0.f;
+      return (i < 0) ? (i - .5f) * (1.f/128.f) : (i + .5f) * (1.f/128.f);
+    }
+    int8_t x, y, z;
+  };
+
+  struct CompressedAlbedoTile {
+    CompressedAlbedo albedo[pixelsPerTile];
+  };
   
   struct DistFB : public FrameBuffer {
     typedef std::shared_ptr<DistFB> SP;
@@ -64,6 +90,7 @@ namespace BARNEY_NS {
       struct {
         CompressedColorTile  *compressedColorTiles = 0;
         CompressedNormalTile *compressedNormalTiles = 0;
+        CompressedAlbedoTile *compressedAlbedoTiles = 0;
       } localSend;
       rtc::ComputeKernel1D *compressTiles = 0;
       rtc::ComputeKernel1D *unpackTiles = 0;
@@ -87,7 +114,8 @@ namespace BARNEY_NS {
         linearcolor may be null. */
     void gatherColorChannel(/*float4 or rgba8*/void *linearColor,
                             BNDataType gatherType,
-                            vec3f *linearNormal) override;
+                            vec3f *linearNormal,
+                            vec3f *linearAlbedo) override;
       
     /*! read one of the auxiliary (not color or normal) buffers into
       the given (device-writeable) staging area; this will at the
@@ -109,6 +137,7 @@ namespace BARNEY_NS {
     struct {
       CompressedColorTile  *compressedColorTiles  = 0;
       CompressedNormalTile *compressedNormalTiles = 0;
+      CompressedAlbedoTile *compressedAlbedoTiles = 0;
       AuxTiles              auxChannelTiles;
       TileDesc             *tileDescs         = 0;
       int                   numActiveTiles    = 0;
@@ -125,6 +154,7 @@ namespace BARNEY_NS {
     const bool isOwner;
     // const bool ownerIsWorker;
     bool needNormals;
+    bool needAlbedo;
     MPIContext *context;
   };
 

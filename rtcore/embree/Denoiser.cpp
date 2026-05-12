@@ -31,6 +31,7 @@ namespace rtc {
       if (out_rgba)  { free(out_rgba);  out_rgba = 0; }
       if (in_rgba)   { free(in_rgba);   in_rgba = 0; }
       if (in_normal) { free(in_normal); in_normal = 0; }
+      if (in_albedo) { free(in_albedo); in_albedo = 0; }
     }
     
     void DenoiserOIDN::resize(vec2i size)
@@ -39,6 +40,7 @@ namespace rtc {
       out_rgba  = (vec4f*)malloc(size.x*size.y*sizeof(vec4f));
       in_rgba   = (vec4f*)malloc(size.x*size.y*sizeof(vec4f));
       in_normal = (vec3f*)malloc(size.x*size.y*sizeof(vec3f));
+      in_albedo = (vec3f*)malloc(size.x*size.y*sizeof(vec3f));
       this->numPixels = size;
     }
     
@@ -47,14 +49,10 @@ namespace rtc {
       oidnSetSharedFilterImage(filter,"color",in_rgba,
                                OIDN_FORMAT_FLOAT3,numPixels.x,numPixels.y,0,
                                sizeof(vec4f),0);
-#if 1
-      // no normal channel - oidn complains about 'unsupported
-      // combination' if we pass this.
-#else
-      oidnSetSharedFilterImage(filter,"normal",in_normal,
-                                OIDN_FORMAT_FLOAT3,numPixels.x,numPixels.y,0,
-                                sizeof(vec3f),0);
-#endif
+      if (in_albedo)
+        oidnSetSharedFilterImage(filter,"albedo",in_albedo,
+                                 OIDN_FORMAT_FLOAT3,numPixels.x,numPixels.y,0,
+                                 sizeof(vec3f),0);
       oidnSetSharedFilterImage(filter,"output",out_rgba,
                                OIDN_FORMAT_FLOAT3,numPixels.x,numPixels.y,0,
                                sizeof(vec4f),0);

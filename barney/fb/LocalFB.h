@@ -38,7 +38,8 @@ namespace BARNEY_NS {
         linearcolor may be null. */
     void gatherColorChannel(/*float4 or rgba8*/void *linearColor,
                             BNDataType gatherType,
-                            vec3f *linearNormal) override;
+                            vec3f *linearNormal,
+                            vec3f *linearAlbedo) override;
       
     /*! read one of the auxiliary (not color or normal) buffers into
       the given (device-writeable) staging area; this will at the

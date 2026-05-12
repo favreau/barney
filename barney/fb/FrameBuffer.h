@@ -48,7 +48,8 @@ namespace BARNEY_NS {
     virtual void gatherColorChannel(/*float4 or rgba8*/void *linearColor,
                                     BNDataType gatherType,
                                     // can be null:
-                                    vec3f *linearNormal) = 0;
+                                    vec3f *linearNormal,
+                                    vec3f *linearAlbedo) = 0;
 
     /*! read one of the auxiliary (not color or normal) buffers into
       the given app memory; this will at the least incur some
@@ -88,11 +89,15 @@ namespace BARNEY_NS {
     /*! staging area for the normal channel (vec3f per pixel) */
     void *linearNormalChannel = 0;
 
+    /*! staging area for the albedo channel (vec3f per pixel) */
+    void *linearAlbedoChannel = 0;
+
     /*! when upscaling, the render-resolution staging buffers that
         tile linearization writes into (before nearest-neighbor
         upscale to the display-resolution linear buffers above) */
     void  *renderAuxChannel    = 0;
     void  *renderNormalChannel = 0;
+    void  *renderAlbedoChannel = 0;
     /*! when upscaling, staging for 2x upscaled color (float4 at numPixels)
         before convert/copy to app (denoiser runs at half res, we upscale here) */
     void  *upscaledColorChannel = 0;

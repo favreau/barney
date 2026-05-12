@@ -22,6 +22,7 @@ namespace rtc {
       vec4f *out_rgba  = 0;
       vec4f *in_rgba   = 0;
       vec3f *in_normal = 0;
+      vec3f *in_albedo = 0;
                              
       Device *const rtc;
 

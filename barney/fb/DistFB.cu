@@ -27,8 +27,10 @@ namespace BARNEY_NS {
     void                 *out_rgba;
     BNDataType            colorChannelFormat;
     vec3f                *out_normal;
+    vec3f                *out_albedo;
     CompressedColorTile  *in_color;
     CompressedNormalTile *in_normal;
+    CompressedAlbedoTile *in_albedo;
     TileDesc             *descs;
     
 #if RTC_DEVICE_CODE
@@ -71,10 +73,11 @@ namespace BARNEY_NS {
       // unsupported type!?
       ;
 
-    // and write normal, too, if so required
     if (out_normal && in_normal) {
-      vec3f normal = normalTile.normal[subIdx].get3f();
-      out_normal[idx] = normal;
+      out_normal[idx] = normalTile.normal[subIdx].get3f();
+    }
+    if (out_albedo && in_albedo) {
+      out_albedo[idx] = in_albedo[tileIdx].albedo[subIdx].get3f();
     }
   }
 #endif
@@ -82,6 +85,7 @@ namespace BARNEY_NS {
   struct CompressTiles {
     CompressedColorTile  *out_color;
     CompressedNormalTile *out_normal;
+    CompressedAlbedoTile *out_albedo;
     AccumTile            *localTiles;
     float                 accumScale;
     
@@ -105,6 +109,10 @@ namespace BARNEY_NS {
     if (out_normal) {
       out_normal[tileID].normal[pixelID]
         .set(localTiles[tileID].normal[pixelID]);
+    }
+    if (out_albedo) {
+      out_albedo[tileID].albedo[pixelID]
+        .set(localTiles[tileID].albedo[pixelID]);
     }
   }
 #endif
@@ -247,23 +255,27 @@ namespace BARNEY_NS {
     linearcolor may be null. */
   void DistFB::gatherColorChannel(/*float4 or rgba8*/void *linearColor,
                                   BNDataType gatherType,
-                                  vec3f *linearNormal)
+                                  vec3f *linearNormal,
+                                  vec3f *linearAlbedo)
   {
     // ------------------------------------------------------------------
     // gather all (packed) tiles from all clients
     // ------------------------------------------------------------------
+    int extraChannels = (needNormals ? 1 : 0) + (needAlbedo ? 1 : 0);
     std::vector<MPI_Request> recv_requests(isOwner
-                                           ?((needNormals?2:1)*ownerGather.numGPUs)
+                                           ?((1+extraChannels)*ownerGather.numGPUs)
                                            :0);
-    std::vector<MPI_Request> send_requests((needNormals?2:1)*devices->size());
+    std::vector<MPI_Request> send_requests((1+extraChannels)*devices->size());
     // ------------------------------------------------------------------
     // trigger all sends and receives - for gpu descs
     // ------------------------------------------------------------------
+    int nG = ownerGather.numGPUs;
+    int nD = (int)devices->size();
     if (isOwner) {
       /* OWNER: create receive requests for all compressed tiles from
          all ranks. this also include the ones we send from our own
          GPUs, so do NOT wait here */
-      for (int ggID = 0; ggID < ownerGather.numGPUs; ggID++) {
+      for (int ggID = 0; ggID < nG; ggID++) {
         auto thisDev = &context->topo->allDevices[ggID];
         context->world.recv(thisDev->worldRank,thisDev->local,
                             gatheredTilesOnOwner.compressedColorTiles
@@ -275,20 +287,13 @@ namespace BARNEY_NS {
                               gatheredTilesOnOwner.compressedNormalTiles
                               +ownerGather.firstTileOnGPU[ggID],
                               ownerGather.numTilesOnGPU[ggID],
-                              recv_requests[ownerGather.numGPUs+ggID]);
-        // int rankOfGPU = ggID / context->gpusPerWorker;
-        // int localID   = ggID % context->gpusPerWorker;
-        // context->world.recv(context->worldRankOfWorker[rankOfGPU],localID,
-        //                     gatheredTilesOnOwner.compressedColorTiles
-        //                     +ownerGather.firstTileOnGPU[ggID],
-        //                     ownerGather.numTilesOnGPU[ggID],
-        //                     recv_requests[ggID]);
-        // if (needNormals)
-        //   context->world.recv(context->worldRankOfWorker[rankOfGPU],localID,
-        //                       gatheredTilesOnOwner.compressedNormalTiles
-        //                       +ownerGather.firstTileOnGPU[ggID],
-        //                       ownerGather.numTilesOnGPU[ggID],
-        //                       recv_requests[ownerGather.numGPUs+ggID]);
+                              recv_requests[nG+ggID]);
+        if (needAlbedo)
+          context->world.recv(thisDev->worldRank,thisDev->local,
+                              gatheredTilesOnOwner.compressedAlbedoTiles
+                              +ownerGather.firstTileOnGPU[ggID],
+                              ownerGather.numTilesOnGPU[ggID],
+                              recv_requests[(needNormals?2:1)*nG+ggID]);
       }
     }
     
@@ -303,6 +308,7 @@ namespace BARNEY_NS {
         CompressTiles kernel = {
           pld->localSend.compressedColorTiles,
           pld->localSend.compressedNormalTiles,
+          pld->localSend.compressedAlbedoTiles,
           tiledFB->accumTiles,
           accumScale
         };
@@ -321,7 +327,12 @@ namespace BARNEY_NS {
           context->world.send(owningRank,device->contextRank(),
                               pld->localSend.compressedNormalTiles,
                               tiledFB->numActiveTilesThisGPU,
-                              send_requests[devices->size()+device->contextRank()]);
+                              send_requests[nD+device->contextRank()]);
+        if (needAlbedo)
+          context->world.send(owningRank,device->contextRank(),
+                              pld->localSend.compressedAlbedoTiles,
+                              tiledFB->numActiveTilesThisGPU,
+                              send_requests[(needNormals?2:1)*nD+device->contextRank()]);
       }
     }
     // ------------------------------------------------------------------
@@ -329,17 +340,21 @@ namespace BARNEY_NS {
     // then have all tiles from all gpus, in compressed form
     // ------------------------------------------------------------------
     if (isOwner)
-      for (int ggID = 0; ggID < ownerGather.numGPUs; ggID++) {
+      for (int ggID = 0; ggID < nG; ggID++) {
         context->world.wait(recv_requests[ggID]);
         if (needNormals)
-          context->world.wait(recv_requests[ownerGather.numGPUs+ggID]);
+          context->world.wait(recv_requests[nG+ggID]);
+        if (needAlbedo)
+          context->world.wait(recv_requests[(needNormals?2:1)*nG+ggID]);
       }
     
     if (context->isActiveWorker)
       for (auto device : *devices) {
         context->world.wait(send_requests[device->contextRank()]);
         if (needNormals)
-          context->world.wait(send_requests[devices->size()+device->contextRank()]);
+          context->world.wait(send_requests[nD+device->contextRank()]);
+        if (needAlbedo)
+          context->world.wait(send_requests[(needNormals?2:1)*nD+device->contextRank()]);
       }
     
     // ------------------------------------------------------------------
@@ -351,8 +366,10 @@ namespace BARNEY_NS {
         linearColor,
         gatherType,
         linearNormal,
+        linearAlbedo,
         gatheredTilesOnOwner.compressedColorTiles,
         gatheredTilesOnOwner.compressedNormalTiles,
+        gatheredTilesOnOwner.compressedAlbedoTiles,
         gatheredTilesOnOwner.tileDescs
       };
       auto device = getDenoiserDevice();
@@ -426,6 +443,10 @@ namespace BARNEY_NS {
         device->rtc->freeMem(pld->localSend.compressedNormalTiles);
         pld->localSend.compressedNormalTiles = 0;
       }
+      if (pld->localSend.compressedAlbedoTiles) {
+        device->rtc->freeMem(pld->localSend.compressedAlbedoTiles);
+        pld->localSend.compressedAlbedoTiles = 0;
+      }
     }
     if (isOwner) {
       Device *device = getDenoiserDevice();
@@ -458,6 +479,10 @@ namespace BARNEY_NS {
         device->rtc->freeMem(gatheredTilesOnOwner.compressedNormalTiles);
         gatheredTilesOnOwner.compressedNormalTiles = 0;
       }
+      if (gatheredTilesOnOwner.compressedAlbedoTiles) {
+        device->rtc->freeMem(gatheredTilesOnOwner.compressedAlbedoTiles);
+        gatheredTilesOnOwner.compressedAlbedoTiles = 0;
+      }
     }
   }
 
@@ -477,9 +502,12 @@ namespace BARNEY_NS {
     // ------------------------------------------------------------------
     if (isOwner) {
       this->needNormals = denoiser != 0;
+      this->needAlbedo  = denoiser != 0;
       context->world.bc_send(&this->needNormals,sizeof(this->needNormals));
+      context->world.bc_send(&this->needAlbedo, sizeof(this->needAlbedo));
     } else {
       context->world.bc_recv(&this->needNormals,sizeof(this->needNormals));
+      context->world.bc_recv(&this->needAlbedo, sizeof(this->needAlbedo));
     }
     
     // ------------------------------------------------------------------
@@ -498,10 +526,14 @@ namespace BARNEY_NS {
       pld->localSend.compressedColorTiles
         = (CompressedColorTile*)device->rtc->allocMem
         (tiledFB->numActiveTilesThisGPU*sizeof(CompressedColorTile));
-      if (needNormals) 
+      if (needNormals)
         pld->localSend.compressedNormalTiles
           = (CompressedNormalTile*)device->rtc->allocMem
           (tiledFB->numActiveTilesThisGPU*sizeof(CompressedNormalTile));
+      if (needAlbedo)
+        pld->localSend.compressedAlbedoTiles
+          = (CompressedAlbedoTile*)device->rtc->allocMem
+          (tiledFB->numActiveTilesThisGPU*sizeof(CompressedAlbedoTile));
     }
     
     std::vector<MPI_Request> recv_requests(ownerGather.numGPUs);
@@ -569,10 +601,14 @@ namespace BARNEY_NS {
         = (CompressedColorTile *)frontDev->rtc->allocMem
         (sumTiles*sizeof(*gatheredTilesOnOwner.compressedColorTiles));
 
-      if (denoiser)
+      if (denoiser) {
         gatheredTilesOnOwner.compressedNormalTiles
           = (CompressedNormalTile *)frontDev->rtc->allocMem
           (sumTiles*sizeof(*gatheredTilesOnOwner.compressedNormalTiles));
+        gatheredTilesOnOwner.compressedAlbedoTiles
+          = (CompressedAlbedoTile *)frontDev->rtc->allocMem
+          (sumTiles*sizeof(*gatheredTilesOnOwner.compressedAlbedoTiles));
+      }
 
       if (channels & BN_FB_DEPTH)
         gatheredTilesOnOwner.auxChannelTiles.depth

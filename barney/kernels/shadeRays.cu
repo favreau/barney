@@ -903,6 +903,10 @@ namespace BARNEY_NS {
         = ray.hadHit()
         ? ray.getN()
         : vec3f(0.f);
+      vec3f incomingAlbedo
+        = ray.hadHit()
+        ? ray.getBSDF().getAlbedo()
+        : vec3f(1.f);  // neutral white for background: no surface constraint for denoiser
 
       // what we'll add into the frame buffer
       vec3f fragment = 0.f;
@@ -976,8 +980,9 @@ namespace BARNEY_NS {
         valueToAccumInto = vec4f(fragment.x,fragment.y,
                                  fragment.z,alpha);
       
-        // write aux buffers (depth, normal, hitIDs
-        accumTiles[tileID].normal[tileOfs] = incomingN;
+        // write aux buffers (depth, normal, albedo, hitIDs
+        accumTiles[tileID].normal[tileOfs]  = incomingN;
+        accumTiles[tileID].albedo[tileOfs]  = incomingAlbedo;
         if (auxTiles.depth) 
           auxTiles.depth[tileID] . f[tileOfs] = incomingZ;
         if (auxTiles.primID)

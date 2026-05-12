@@ -14,6 +14,7 @@ namespace BARNEY_NS {
                                      void      *out_rgba,
                                      BNDataType colorFormat,
                                      vec3f     *out_normal,
+                                     vec3f     *out_albedo,
                                      float      accumScale,
                                      TileDesc  *descs,
                                      AccumTile *tiles,
@@ -47,6 +48,8 @@ namespace BARNEY_NS {
     
     if (out_normal)
       out_normal[idx] = tile->normal[subIdx];
+    if (out_albedo)
+      out_albedo[idx] = tile->albedo[subIdx];
   }
   
 
@@ -59,6 +62,7 @@ namespace BARNEY_NS {
   void TiledFB::linearizeColorAndNormal(void *linearColor,
                                         BNDataType colorFormat,
                                         vec3f *linearNormal,
+                                        vec3f *linearAlbedo,
                                         float  accumScale)
   {
     SetActiveGPU forDuration(appDevice?appDevice:device);
@@ -77,6 +81,7 @@ namespace BARNEY_NS {
                  linearColor,
                  colorFormat,
                  linearNormal,
+                 linearAlbedo,
                  accumScale,
                  appDevice?appTileDescs:tileDescs,
                  appDevice?appAccumTiles:accumTiles,

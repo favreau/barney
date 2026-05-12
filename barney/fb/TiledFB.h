@@ -21,6 +21,7 @@ namespace BARNEY_NS {
   struct AccumTile {
     vec4f  accum[pixelsPerTile];
     vec3f  normal[pixelsPerTile];
+    vec3f  albedo[pixelsPerTile];
   };
 
   struct AuxTiles {
@@ -70,6 +71,7 @@ namespace BARNEY_NS {
     void linearizeColorAndNormal(void  *linearColor,
                                  BNDataType format,
                                  vec3f *linearNormal,
+                                 vec3f *linearAlbedo,
                                  float  accumScale);
 
     /*! linearize given array's aux tiles, on given device. this can be

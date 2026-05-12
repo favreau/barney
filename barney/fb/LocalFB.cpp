@@ -59,13 +59,14 @@ namespace BARNEY_NS {
     linearcolor may be null. */
   void LocalFB::gatherColorChannel(/*float4 or rgba8*/void *linearColor,
                                    BNDataType gatherType,
-                                   vec3f *linearNormal)
+                                   vec3f *linearNormal,
+                                   vec3f *linearAlbedo)
   {
     float accumScale = 1.f/accumID;
     for (auto device : *devices) {
       auto tfb = getFor(device);
       tfb->linearizeColorAndNormal
-        (linearColor,gatherType,linearNormal,accumScale);
+        (linearColor,gatherType,linearNormal,linearAlbedo,accumScale);
     }
     for (auto device : *devices)
       device->sync();

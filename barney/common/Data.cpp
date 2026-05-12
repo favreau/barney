@@ -135,7 +135,8 @@ namespace BARNEY_NS {
     case BN_FB_PRIMID: return "BN_FB_PRIMID";
     case BN_FB_INSTID: return "BN_FB_INSTID";
     case BN_FB_OBJID:  return "BN_FB_OBJID";
-    case BN_FB_NORMAL: return "BN_FB_NORMAL";
+    case BN_FB_NORMAL:  return "BN_FB_NORMAL";
+    case BN_FB_ALBEDO:  return "BN_FB_ALBEDO";
     default:
       throw std::runtime_error
         ("#bn internal error: to_string not implemented for "

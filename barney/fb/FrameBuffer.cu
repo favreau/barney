@@ -92,6 +92,10 @@ namespace BARNEY_NS {
       device->rtc->freeMem(linearNormalChannel);
       linearNormalChannel = 0;
     }
+    if (linearAlbedoChannel) {
+      device->rtc->freeMem(linearAlbedoChannel);
+      linearAlbedoChannel = 0;
+    }
     if (renderAuxChannel) {
       device->rtc->freeMem(renderAuxChannel);
       renderAuxChannel = 0;
@@ -99,6 +103,10 @@ namespace BARNEY_NS {
     if (renderNormalChannel) {
       device->rtc->freeMem(renderNormalChannel);
       renderNormalChannel = 0;
+    }
+    if (renderAlbedoChannel) {
+      device->rtc->freeMem(renderAlbedoChannel);
+      renderAlbedoChannel = 0;
     }
     if (upscaledColorChannel) {
       device->rtc->freeMem(upscaledColorChannel);
@@ -197,6 +205,7 @@ namespace BARNEY_NS {
     bool doDenoising = (denoiser != 0) && (enableDenoising || enableUpscaling);
 
     bool needNormalChannel = (channels & BN_FB_NORMAL) && linearNormalChannel;
+    bool needAlbedoChannel = (channels & BN_FB_ALBEDO) && linearAlbedoChannel;
     void *colorCopyTarget
       = doDenoising
       ? denoiser->in_rgba
@@ -206,12 +215,17 @@ namespace BARNEY_NS {
       normalCopyTarget = denoiser->in_normal;
     else if (needNormalChannel)
       normalCopyTarget = (vec3f*)linearNormalChannel;
+    vec3f *albedoCopyTarget = nullptr;
+    if (doDenoising && denoiser->in_albedo)
+      albedoCopyTarget = denoiser->in_albedo;
+    else if (needAlbedoChannel)
+      albedoCopyTarget = (vec3f*)linearAlbedoChannel;
     BNDataType gatherType
       = doDenoising
       ? BN_FLOAT4
       : colorChannelFormat;
 
-    gatherColorChannel(colorCopyTarget,gatherType,normalCopyTarget);
+    gatherColorChannel(colorCopyTarget,gatherType,normalCopyTarget,albedoCopyTarget);
 
     if (doDenoising && needNormalChannel) {
       if (enableUpscaling && renderPixels != numPixels) {
@@ -223,6 +237,20 @@ namespace BARNEY_NS {
                      denoiser->in_normal, renderPixels);
       } else {
         device->rtc->copy(linearNormalChannel, denoiser->in_normal,
+                          renderPixels.x*renderPixels.y*sizeof(vec3f));
+      }
+    }
+
+    if (doDenoising && needAlbedoChannel && denoiser->in_albedo) {
+      if (enableUpscaling && renderPixels != numPixels) {
+        int totalOut = numPixels.x * numPixels.y;
+        __rtc_launch(device->rtc,
+                     upscale2xVec3fKernel,
+                     divRoundUp(totalOut, 256), 256,
+                     (vec3f*)linearAlbedoChannel, numPixels,
+                     denoiser->in_albedo, renderPixels);
+      } else {
+        device->rtc->copy(linearAlbedoChannel, denoiser->in_albedo,
                           renderPixels.x*renderPixels.y*sizeof(vec3f));
       }
     }
@@ -384,6 +412,13 @@ namespace BARNEY_NS {
       return;
     }
 
+    if (channel == BN_FB_ALBEDO && linearAlbedoChannel) {
+      // albedo was already linearized (and upscaled if needed) during finalizeFrame()
+      device->rtc->copy(appMemory,linearAlbedoChannel,
+                        numPixels.x*numPixels.y*sizeof(vec3f));
+      return;
+    }
+
     throw std::runtime_error("un-handled frame buffer channel/format combination "
                              +to_string(channel)
                              +" "+to_string(requestedFormat));
@@ -431,14 +466,18 @@ namespace BARNEY_NS {
       linearAuxChannel   = rtc->allocMem(dpNP * sizeof(uint32_t));
       if (channels & BN_FB_NORMAL)
         linearNormalChannel = rtc->allocMem(dpNP * sizeof(vec3f));
+      if (channels & BN_FB_ALBEDO)
+        linearAlbedoChannel = rtc->allocMem(dpNP * sizeof(vec3f));
 
       // when upscaling, we need render-resolution staging buffers
-      // for aux/normal (tile linearization writes at render res,
+      // for aux/normal/albedo (tile linearization writes at render res,
       // then we upscale to display res)
       if (enableUpscaling && renderPixels != numPixels) {
         renderAuxChannel    = rtc->allocMem(rpNP * sizeof(uint32_t));
         if (channels & BN_FB_NORMAL)
           renderNormalChannel = rtc->allocMem(rpNP * sizeof(vec3f));
+        if (channels & BN_FB_ALBEDO)
+          renderAlbedoChannel = rtc->allocMem(rpNP * sizeof(vec3f));
         upscaledColorChannel = rtc->allocMem(dpNP * sizeof(vec4f));
       }
 

@@ -70,6 +70,9 @@ namespace BARNEY_NS {
                        vec3f rayDir,
                        vec3f Ng,
                        bool dbg=false) const;
+
+      /*! return the surface base color (albedo) for use as a denoiser guide layer */
+      inline __rtc_device vec3f getAlbedo() const;
 #endif
     };
 
@@ -118,6 +121,20 @@ namespace BARNEY_NS {
       return 1.f;
     }
 
+    inline __rtc_device
+    vec3f PackedBSDF::getAlbedo() const
+    {
+      if (type == TYPE_Phase)
+        return (const vec3f&)data.phase.albedo;
+      if (type == TYPE_Lambertian)
+        return (const vec3f&)data.lambertian.albedo;
+      if (type == TYPE_NVisii)
+        return data.nvisii.getAlbedo(false);
+      if (type == TYPE_Glass)
+        return vec3f(1.f);
+      return vec3f(0.f);
+    }
+    
     inline __rtc_device
     void PackedBSDF::scatter(ScatterResult &scatter,
                              const render::DG &dg,

@@ -78,6 +78,8 @@ namespace barney_device {
       getParam<anari::DataType>("channel.objectId", ANARI_UNKNOWN);
     m_channelTypes.normal =
       getParam<anari::DataType>("channel.normal", ANARI_UNKNOWN);
+    m_channelTypes.albedo =
+      getParam<anari::DataType>("channel.albedo", ANARI_UNKNOWN);
     m_size = getParam<math::uint2>("size", math::uint2(10, 10));
     m_displaySize = m_size;  /* updated in finalize() from actual FB when slot==0 */
     // Default true: match Renderer and barney_device.json; framebuffer denoise
@@ -122,6 +124,8 @@ namespace barney_device {
         requiredChannels |= BN_FB_INSTID;
       if (m_channelTypes.normal == ANARI_FLOAT32_VEC3)
         requiredChannels |= BN_FB_NORMAL;
+      if (m_channelTypes.albedo == ANARI_FLOAT32_VEC3)
+        requiredChannels |= BN_FB_ALBEDO;
 
       if (m_bnFrameBuffer) {
         bnSet1i(m_bnFrameBuffer, "denoise", denoise ? 1 : 0);
@@ -309,6 +313,15 @@ namespace barney_device {
       m_didMapChannel.normal = true;
       *pixelType = ANARI_FLOAT32_VEC3;
       return m_channelBuffers.normal;
+    } else if (channel == "channel.albedo") {
+      if (m_channelBuffers.albedo)
+        throw std::runtime_error
+          ("trying to map channel.albedo, but seems already mapped");
+      m_channelBuffers.albedo = new float[numPixels * 3];
+      bnFrameBufferRead(m_bnFrameBuffer, BN_FB_ALBEDO, m_channelBuffers.albedo, BN_FLOAT3);
+      m_didMapChannel.albedo = true;
+      *pixelType = ANARI_FLOAT32_VEC3;
+      return m_channelBuffers.albedo;
 #if BANARI_HAVE_CUDA
     } else if (channel == "channel.colorCUDA") {
       if (m_channelBuffers.color)
@@ -408,6 +421,10 @@ namespace barney_device {
       if (m_channelBuffers.normal)
         delete[] m_channelBuffers.normal;
       m_channelBuffers.normal = 0;
+    } else if (channel == "channel.albedo" && m_channelBuffers.albedo) {
+      if (m_channelBuffers.albedo)
+        delete[] m_channelBuffers.albedo;
+      m_channelBuffers.albedo = 0;
     } else if (channel == "channel.colorCUDA") {
 #if BANARI_HAVE_CUDA
       if (m_channelBuffers.color)
@@ -490,6 +507,9 @@ namespace barney_device {
 
     delete[] m_channelBuffers.normal;
     m_channelBuffers.normal = nullptr;
+
+    delete[] m_channelBuffers.albedo;
+    m_channelBuffers.albedo = nullptr;
   }
 
 } // namespace barney_device
