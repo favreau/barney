@@ -36,7 +36,8 @@
       "khr_renderer_background_color",
       "khr_renderer_background_image",
       "khr_sampler_imagexd_clamp_to_border",
-      "nv_frame_buffers_cuda"
+      "nv_frame_buffers_cuda",
+      "barney_geometry_sdf"
     ]
   },
   "objects": [

@@ -165,6 +165,9 @@ set(HOST_SOURCES
   geometry/Cones.cpp
   geometry/IsoSurface.h
   geometry/IsoSurface.cpp
+  geometry/SDFPrimitive.h
+  geometry/SDFGeometries.h
+  geometry/SDFGeometries.cpp
   # volume data 
   volume/Volume.h
   volume/Volume.cpp
@@ -240,6 +243,7 @@ set(DEVICE_PROGRAM_SOURCES
   geometry/Cylinders.dev.cu
   geometry/Capsules.dev.cu
   geometry/Cones.dev.cu
+  geometry/SDFGeometries.dev.cu
   volume/StructuredData.dev.cu
   volume/NanoVDB.dev.cu
   umesh/mc/UMeshMC.dev.cu

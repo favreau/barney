@@ -5,7 +5,10 @@
 #include "Geometry.h"
 #include "common.h"
 // std
+#include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <numeric>
 
@@ -56,6 +59,8 @@ namespace barney_device {
       return new Quad(s);
     if (subtype == "triangle")
       return new Triangle(s);
+    if (subtype == "sdfGeometries")
+      return new SDFGeometries(s);
     return (Geometry *)new UnknownObject(ANARI_GEOMETRY, subtype, s);
   }
 
@@ -417,6 +422,156 @@ namespace barney_device {
         result.insert(math::float3{v2.x - r, v2.y - r, v2.z - r});
         result.insert(math::float3{v2.x + r, v2.y + r, v2.z + r});
       }
+    }
+    return result;
+  }
+
+  // SDF geometries //
+
+  namespace {
+
+  // Host-side mirror of barney/geometry/SDFPrimitive.h (72 bytes, VisRTX-compatible).
+  struct SDFPrimitiveHost {
+    uint64_t userData{0};
+    math::float3 userParams{0.f, 0.f, 0.f};
+    math::float3 p0{0.f, 0.f, 0.f};
+    math::float3 p1{0.f, 0.f, 0.f};
+    float    r0{-1.f};
+    float    r1{-1.f};
+    uint32_t _pad{0};
+    uint64_t neighboursIndex{0};
+    uint8_t  numNeighbours{0};
+    uint8_t  type{0};
+    uint8_t  _pad2[6]{};
+  };
+  static_assert(sizeof(SDFPrimitiveHost) == 72);
+
+  static box3 computeSDFPrimitiveAABB(const SDFPrimitiveHost &g,
+                                    float blendK = 0.f)
+  {
+    const float disp = g.userParams.x + blendK;
+    const float r0 = std::max(0.f, g.r0);
+    const float r1 = std::max(0.f, g.r1);
+
+    switch (g.type) {
+    case 0: // SPHERE
+    case 6: // CUT_SPHERE
+      return box3(math::float3(g.p0.x - (r0 + disp), g.p0.y - (r0 + disp),
+                               g.p0.z - (r0 + disp)),
+                  math::float3(g.p0.x + (r0 + disp), g.p0.y + (r0 + disp),
+                               g.p0.z + (r0 + disp)));
+    case 5: // TORUS
+      return box3(
+          math::float3(g.p0.x - (r0 + r1 + disp), g.p0.y - (r0 + r1 + disp),
+                       g.p0.z - (r0 + r1 + disp)),
+          math::float3(g.p0.x + (r0 + r1 + disp), g.p0.y + (r0 + r1 + disp),
+                       g.p0.z + (r0 + r1 + disp)));
+    case 8: // ELLIPSOID
+      return box3(math::float3(g.p0.x - g.p1.x - disp, g.p0.y - g.p1.y - disp,
+                               g.p0.z - g.p1.z - disp),
+                  math::float3(g.p0.x + g.p1.x + disp, g.p0.y + g.p1.y + disp,
+                               g.p0.z + g.p1.z + disp));
+    default: {
+      const float maxR = std::max(r0, r1) + disp;
+      const math::float3 lo(std::min(g.p0.x, g.p1.x) - maxR,
+                            std::min(g.p0.y, g.p1.y) - maxR,
+                            std::min(g.p0.z, g.p1.z) - maxR);
+      const math::float3 hi(std::max(g.p0.x, g.p1.x) + maxR,
+                            std::max(g.p0.y, g.p1.y) + maxR,
+                            std::max(g.p0.z, g.p1.z) + maxR);
+      return box3(lo, hi);
+    }
+    }
+  }
+
+  } // namespace
+
+  SDFGeometries::SDFGeometries(BarneyGlobalState *s)
+    : Geometry(s), m_sdf(this), m_neighbor(this)
+  {}
+
+  void SDFGeometries::commitParameters()
+  {
+    Geometry::commitParameters();
+    m_sdf = getParamObject<Array1D>("primitive.sdf");
+    m_neighbor = getParamObject<Array1D>("primitive.neighbor");
+    m_epsilon = getParam<float>("epsilon", 1e-5f);
+    m_nbMarchIterations = std::max(getParam<int>("nbMarchIterations", 16), 1);
+    m_blendFactor = getParam<float>("blendFactor", 1.f);
+    m_blendLerpFactor = getParam<float>("blendLerpFactor", 0.5f);
+    m_omega = std::clamp(getParam<float>("omega", 1.f), 0.f, 1.f);
+    m_distanceFromCamera = getParam<float>("distanceFromCamera", 100.f);
+    m_noiseFactor = std::clamp(getParam<float>("noiseFactor", 0.f), 0.f, 1.f);
+    m_blendDistanceFromCamera =
+        getParam<float>("blendDistanceFromCamera", 1e6f);
+  }
+
+  void SDFGeometries::finalize()
+  {
+    if (!m_sdf) {
+      reportMessage(ANARI_SEVERITY_WARNING,
+                    "missing required parameter 'primitive.sdf' on "
+                    "sdfGeometries geometry");
+      return;
+    }
+    if (m_sdf->totalSize() % sizeof(SDFPrimitiveHost) != 0) {
+      reportMessage(ANARI_SEVERITY_WARNING,
+                    "primitive.sdf size must be a multiple of 72 bytes on "
+                    "sdfGeometries geometry");
+    }
+  }
+
+  void SDFGeometries::setBarneyParameters(BNGeom geom)
+  {
+    if (m_sdf)
+      bnSetData(geom, "primitive.sdf", m_sdf->barneyData());
+    if (m_neighbor)
+      bnSetData(geom, "primitive.neighbor", m_neighbor->barneyData());
+    bnSet1f(geom, "epsilon", m_epsilon);
+    bnSet1i(geom, "nbMarchIterations", m_nbMarchIterations);
+    bnSet1f(geom, "blendFactor", m_blendFactor);
+    bnSet1f(geom, "blendLerpFactor", m_blendLerpFactor);
+    bnSet1f(geom, "omega", m_omega);
+    bnSet1f(geom, "distanceFromCamera", m_distanceFromCamera);
+    bnSet1f(geom, "noiseFactor", m_noiseFactor);
+    bnSet1f(geom, "blendDistanceFromCamera", m_blendDistanceFromCamera);
+    setAttributes(geom);
+  }
+
+  bool SDFGeometries::isValid() const
+  {
+    return m_sdf && m_sdf->totalSize() >= sizeof(SDFPrimitiveHost)
+           && (m_sdf->totalSize() % sizeof(SDFPrimitiveHost)) == 0;
+  }
+
+  const char *SDFGeometries::bnSubtype() const
+  {
+    return "sdf_geometries";
+  }
+
+  box3 SDFGeometries::bounds() const
+  {
+    if (!isValid())
+      return {};
+
+    const auto *geometries =
+        reinterpret_cast<const SDFPrimitiveHost *>(m_sdf->data());
+    const size_t numPrimitives =
+        m_sdf->totalSize() / sizeof(SDFPrimitiveHost);
+
+    box3 result;
+    for (size_t i = 0; i < numPrimitives; ++i) {
+      float blendK = 0.f;
+      if (geometries[i].numNeighbours > 0) {
+        const float r0 = std::max(0.f, geometries[i].r0);
+        const float r1 = std::max(
+            0.f,
+            geometries[i].r1 >= 0.f ? geometries[i].r1 : geometries[i].r0);
+        blendK = (1.f - m_blendLerpFactor) * std::min(r0, r1)
+               + m_blendLerpFactor * std::max(r0, r1);
+        blendK *= m_blendFactor;
+      }
+      result.insert(computeSDFPrimitiveAABB(geometries[i], blendK));
     }
     return result;
   }
