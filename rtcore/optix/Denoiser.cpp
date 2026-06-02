@@ -108,10 +108,6 @@ namespace rtc {
         BARNEY_CUDA_CALL_NOTHROW(Free(in_albedo));
         in_albedo = 0;
       }
-      if (out_rgba) {
-        BARNEY_CUDA_CALL_NOTHROW(Free(out_rgba));
-        out_rgba = 0;
-      }
     }
     
     void Optix8Denoiser::resize(vec2i numPixels)

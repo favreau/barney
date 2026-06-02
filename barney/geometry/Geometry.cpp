@@ -12,6 +12,7 @@
 #include "barney/geometry/Cylinders.h"
 #include "barney/geometry/Capsules.h"
 #include "barney/geometry/IsoSurface.h"
+#include "barney/geometry/SDFGeometries.h"
 
 namespace BARNEY_NS {
 
@@ -39,6 +40,8 @@ namespace BARNEY_NS {
       return std::make_shared<Capsules>(context,devices);
     if (type == "triangles")
       return std::make_shared<Triangles>(context,devices);
+    if (type == "sdf_geometries")
+      return std::make_shared<SDFGeometries>(context,devices);
     
     context->warn_unsupported_object("Geometry",type);
     return {};

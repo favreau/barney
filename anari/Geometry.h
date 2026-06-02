@@ -143,6 +143,30 @@ namespace barney_device {
     std::vector<int> m_generatedIndices;
   };
 
+  struct SDFGeometries : public Geometry
+  {
+    SDFGeometries(BarneyGlobalState *s);
+    void commitParameters() override;
+    void finalize() override;
+    bool isValid() const override;
+
+    void setBarneyParameters(BNGeom geom) override;
+    const char *bnSubtype() const override;
+    box3 bounds() const override;
+
+  private:
+    helium::ChangeObserverPtr<Array1D> m_sdf;
+    helium::ChangeObserverPtr<Array1D> m_neighbor;
+    float m_epsilon{1e-5f};
+    int   m_nbMarchIterations{16};
+    float m_blendFactor{1.f};
+    float m_blendLerpFactor{0.5f};
+    float m_omega{1.f};
+    float m_distanceFromCamera{100.f};
+    float m_noiseFactor{0.f};
+    float m_blendDistanceFromCamera{1e6f};
+  };
+
   struct Triangle : public Geometry
   {
     Triangle(BarneyGlobalState *s);

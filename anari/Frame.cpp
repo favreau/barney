@@ -82,8 +82,7 @@ namespace barney_device {
       getParam<anari::DataType>("channel.albedo", ANARI_UNKNOWN);
     m_size = getParam<math::uint2>("size", math::uint2(10, 10));
     m_displaySize = m_size;  /* updated in finalize() from actual FB when slot==0 */
-    // Default true: match Renderer and barney_device.json; framebuffer denoise
-    // is driven from this flag, not from the renderer object alone.
+    // Frame params override renderer defaults (GreenHorizon export path).
     m_enableDenoising = getParam<bool>("denoise", true);
     m_enableUpscaling = getParam<bool>("upscale", false);
     m_forceFullDenoise = getParam<bool>("forceFullDenoise", false);
@@ -93,20 +92,22 @@ namespace barney_device {
   {
     cleanup();
 
-    bool denoise = m_enableDenoising;
     if (!m_renderer) {
       reportMessage(ANARI_SEVERITY_WARNING,
                     "missing required parameter 'renderer' on frame");
+      return;
     }
 
     if (!m_camera) {
       reportMessage(
                     ANARI_SEVERITY_WARNING, "missing required parameter 'camera' on frame");
+      return;
     }
 
     if (!m_world) {
       reportMessage(
                     ANARI_SEVERITY_WARNING, "missing required parameter 'world' on frame");
+      return;
     }
 
     if (deviceState()->slot == 0) {
@@ -128,7 +129,8 @@ namespace barney_device {
         requiredChannels |= BN_FB_ALBEDO;
 
       if (m_bnFrameBuffer) {
-        bnSet1i(m_bnFrameBuffer, "denoise", denoise ? 1 : 0);
+        bnSet1i(m_bnFrameBuffer, "denoise", m_enableDenoising ? 1 : 0);
+        bnSet1i(m_bnFrameBuffer, "fadeOutDenoiser", m_renderer->fadeOutDenoiser() ? 1 : 0);
         bnSet1i(m_bnFrameBuffer, "upscale", m_enableUpscaling ? 1 : 0);
         bnSet1i(m_bnFrameBuffer, "forceFullDenoise", m_forceFullDenoise ? 1 : 0);
         bnCommit(m_bnFrameBuffer);
