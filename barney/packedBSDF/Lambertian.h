@@ -59,7 +59,7 @@ namespace BARNEY_NS {
         vec3f N = dg.Ng;
         if (dot(wi,N) < 0.f) N = -N;
         
-        float cosThetaI = max(dot(wi, dg.Ns), 0.f);
+        float cosThetaI = max(dot(wi, N), 0.f);
         float pdf = cosineSampleHemispherePDF(cosThetaI);
         return EvalRes(rtc::load(albedo) * ONE_OVER_PI * cosThetaI,pdf);
       }

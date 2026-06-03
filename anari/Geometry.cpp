@@ -59,7 +59,7 @@ namespace barney_device {
       return new Quad(s);
     if (subtype == "triangle")
       return new Triangle(s);
-    if (subtype == "sdfGeometries")
+    if (subtype == "sdfGeometries" || subtype == "sdf")
       return new SDFGeometries(s);
     return (Geometry *)new UnknownObject(ANARI_GEOMETRY, subtype, s);
   }

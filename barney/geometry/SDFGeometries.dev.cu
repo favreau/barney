@@ -296,9 +296,14 @@ namespace BARNEY_NS {
 
       const vec3f objectP = ray.P;
       const vec3f objectN = ray.unpackNormal();
+
       const vec3f worldP = ti.transformPointFromObjectToWorldSpace(objectP);
-      const vec3f worldN =
+      vec3f worldN =
         normalize(ti.transformNormalFromObjectToWorldSpace(objectN));
+      // Object-ray intrinsics are illegal in closesthit; intersect already
+      // oriented objectN. Re-check against the world ray here.
+      if (dot(worldN, ti.getWorldRayDirection()) > 0.f)
+        worldN = -worldN;
 
       render::HitAttributes hitData;
       hitData.primID = primID;
@@ -395,16 +400,19 @@ namespace BARNEY_NS {
 
       const vec3f hp = ro + candidateT * rd;
       const float primScale = max(self.geometries[primID].r0, 1e-3f);
-      const float e = primScale * 0.01f;
+      const float e = max(primScale * 0.01f, 1e-5f * max(1.f, length(hp)));
       const vec3f k0(1.f, -1.f, -1.f);
       const vec3f k1(-1.f, -1.f, 1.f);
       const vec3f k2(-1.f, 1.f, -1.f);
       const vec3f k3(1.f, 1.f, 1.f);
-      const vec3f N = normalize(
+      vec3f N = normalize(
           k0 * sdfEval(hp + e * k0, primID, self, camDist)
         + k1 * sdfEval(hp + e * k1, primID, self, camDist)
         + k2 * sdfEval(hp + e * k2, primID, self, camDist)
         + k3 * sdfEval(hp + e * k3, primID, self, camDist));
+      // Blended SDF gradients can point inward; shade against the ray.
+      if (dot(N, rd) > 0.f)
+        N = -N;
 
       if (OptixGlobals::hitOnInvisibleSide(globals, candidateT, ti))
         return;

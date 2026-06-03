@@ -620,8 +620,8 @@ namespace BARNEY_NS {
       // && (random() < (float)ray.mini.transmission);
       render::DG dg;
       dg.P  = ray.P;
-      dg.Ng = Ng;
-      dg.Ns = Ng;
+      dg.Ng = Ngff;
+      dg.Ns = Ngff;
       dg.wo = -normalize((vec3f)ray.dir);
       dg.insideMedium = ray.isInMedium;
 
@@ -899,10 +899,11 @@ namespace BARNEY_NS {
 #endif
         : 0.f;
       float incomingZ = ray.tMax;
-      vec3f incomingN
-        = ray.hadHit()
-        ? ray.getN()
-        : vec3f(0.f);
+      vec3f incomingN = vec3f(0.f);
+      if (ray.hadHit()) {
+        vec3f n = normalize(ray.getN());
+        incomingN = (dot((vec3f)ray.dir, n) < 0.f) ? n : -n;
+      }
       vec3f incomingAlbedo
         = ray.hadHit()
         ? ray.getBSDF().getAlbedo()
