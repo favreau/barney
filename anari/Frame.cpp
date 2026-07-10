@@ -384,6 +384,15 @@ namespace barney_device {
       bnFrameBufferRead(m_bnFrameBuffer, BN_FB_NORMAL, m_channelBuffers.normal, BN_FLOAT3);
       *pixelType = ANARI_FLOAT32_VEC3;
       return m_channelBuffers.normal;
+    } else if (channel == "channel.albedoCUDA"
+               && m_channelTypes.albedo == ANARI_FLOAT32_VEC3) {
+      if (m_channelBuffers.albedo)
+        throw std::runtime_error
+          ("trying to map albedo buffer, but buffer already mapped");
+      cudaMalloc((void **)&m_channelBuffers.albedo, numPixels * 3 * sizeof(float));
+      bnFrameBufferRead(m_bnFrameBuffer, BN_FB_ALBEDO, m_channelBuffers.albedo, BN_FLOAT3);
+      *pixelType = ANARI_FLOAT32_VEC3;
+      return m_channelBuffers.albedo;
 #endif
     } else {
       reportMessage(ANARI_SEVERITY_WARNING,
@@ -462,6 +471,12 @@ namespace barney_device {
       if (m_channelBuffers.normal)
         cudaFree(m_channelBuffers.normal);
       m_channelBuffers.normal = 0;
+#endif
+    } else if (channel == "channel.albedoCUDA") {
+#if BANARI_HAVE_CUDA
+      if (m_channelBuffers.albedo)
+        cudaFree(m_channelBuffers.albedo);
+      m_channelBuffers.albedo = 0;
 #endif
     }
   }
